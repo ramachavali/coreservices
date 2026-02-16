@@ -73,7 +73,7 @@ services:
       LOGTO_DATABASE_URL: ${LOGTO_DATABASE_URL:-postgres://${LOGTO_DB_USER:-logto}:${LOGTO_DB_PASSWORD:-logto_pass}@logto-db:5432/${LOGTO_DB_NAME:-logto_db}}
       LOGTO_APP_ID: ${LOGTO_APP_ID:-logto}
       LOGTO_APP_SECRET: ${LOGTO_APP_SECRET:-change-me}
-      LOGTO_HOST: ${LOGTO_HOST:-0.0.0.0}
+      LOGTO_HOST: 0.0.0.0
       LOGTO_PORT: ${LOGTO_PORT:-3000}
     volumes:
       - logto_data:/var/lib/logto
