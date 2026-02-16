@@ -1,0 +1,145 @@
+services:
+  traefik:
+    image: traefik:latest
+    container_name: traefik
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    ports:
+      - "80:80"
+      - "443:443"
+      - "8090:8080"  # Dashboard
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ../ai-stack-homelab/configs/traefik/traefik.yml:/etc/traefik/traefik.yml:ro
+      - ../ai-stack-homelab/configs/traefik/dynamic.yml:/etc/traefik/dynamic.yml:ro
+      - traefik_certs:/certs
+      - traefik_logs:/var/log/traefik
+    networks:
+      - core-network
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.dashboard.rule=Host(`traefik.local`)"
+      - "traefik.http.routers.dashboard.service=api@internal"
+      - "traefik.http.routers.dashboard.entrypoints=websecure"
+      - "traefik.http.routers.dashboard.tls=true"
+    healthcheck:
+      test: ["CMD", "traefik", "healthcheck", "--ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  vault:
+    image: hashicorp/vault:latest
+    container_name: vault
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    environment:
+      VAULT_ADDR: http://0.0.0.0:8200
+    volumes:
+      - vault_data:/vault/data
+      - ./configs/vault/config.hcl:/vault/config/config.hcl:ro
+    command: server -config=/vault/config/config.hcl
+    networks:
+      - core-network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:8200/v1/sys/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 10s
+
+  logto:
+    image: logto/logto:latest
+    container_name: logto
+    restart: unless-stopped
+    depends_on:
+      logto-db:
+        condition: service_healthy
+    security_opt:
+      - no-new-privileges:true
+    environment:
+      LOGTO_DATABASE_URL: ${LOGTO_DATABASE_URL:-postgres://${LOGTO_DB_USER:-logto}:${LOGTO_DB_PASSWORD:-logto_pass}@logto-db:5432/${LOGTO_DB_NAME:-logto_db}}
+      LOGTO_APP_ID: ${LOGTO_APP_ID:-logto}
+      LOGTO_APP_SECRET: ${LOGTO_APP_SECRET:-change-me}
+      LOGTO_HOST: ${LOGTO_HOST:-0.0.0.0}
+      LOGTO_PORT: ${LOGTO_PORT:-3000}
+    volumes:
+      - logto_data:/var/lib/logto
+      - ./configs/logto:/etc/logto:ro
+    networks:
+      - core-network
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.logto.rule=Host(`auth.local`)"
+      - "traefik.http.routers.logto.entrypoints=websecure"
+      - "traefik.http.routers.logto.tls=true"
+      - "traefik.http.services.logto.loadbalancer.server.port=3000"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://127.0.0.1:3000/ || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+
+  logto-db:
+    image: postgres:15
+    container_name: logto-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${LOGTO_DB_USER:-logto}
+      POSTGRES_PASSWORD: ${LOGTO_DB_PASSWORD:-logto_pass}
+      POSTGRES_DB: ${LOGTO_DB_NAME:-logto_db}
+    volumes:
+      - logto_db_data:/var/lib/postgresql/data
+    networks:
+      - core-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${LOGTO_DB_USER:-logto} -d ${LOGTO_DB_NAME:-logto_db} || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  core-frontend:
+    build: ./services/core-frontend
+    container_name: core-frontend
+    restart: unless-stopped
+    depends_on:
+      vault:
+        condition: service_started
+      logto:
+        condition: service_started
+    environment:
+      PORTAL_TITLE: ${PORTAL_TITLE:-Core Services Portal}
+      VAULT_UI_URL: ${VAULT_UI_URL:-http://localhost:8200/ui}
+      LOGTO_UI_URL: ${LOGTO_UI_URL:-https://auth.local}
+      TRAEFIK_UI_URL: ${TRAEFIK_UI_URL:-https://traefik.local}
+    networks:
+      - core-network
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.core-frontend.rule=Host(`core.local`)"
+      - "traefik.http.routers.core-frontend.entrypoints=websecure"
+      - "traefik.http.routers.core-frontend.tls=true"
+      - "traefik.http.services.core-frontend.loadbalancer.server.port=5000"
+    healthcheck:
+      test: ["CMD-SHELL", "python -c 'import urllib.request; urllib.request.urlopen(\"http://127.0.0.1:5000/health\")'"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+networks:
+  core-network:
+    driver: bridge
+    name: core-network
+
+volumes:
+  traefik_certs:
+  traefik_logs:
+  vault_data:
+  logto_data:
+  logto_db_data:

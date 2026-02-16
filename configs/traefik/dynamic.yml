@@ -1,0 +1,29 @@
+# Traefik Dynamic Configuration
+# Service-specific routing and middleware
+
+# TLS Configuration for self-signed certificates
+tls:
+  options:
+    default:
+      minVersion: VersionTLS12
+      sniStrict: false
+
+  stores:
+    default:
+      defaultCertificate:
+        certFile: /certs/cert.pem
+        keyFile: /certs/key.pem
+
+# Middleware for security headers
+http:
+  middlewares:
+    security-headers:
+      headers:
+        browserXssFilter: true
+        contentTypeNosniff: true
+        forceSTSHeader: true
+        frameDeny: true
+        stsIncludeSubdomains: true
+        stsPreload: true
+        stsSeconds: 31536000
+        customFrameOptionsValue: "SAMEORIGIN"
