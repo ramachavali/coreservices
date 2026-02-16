@@ -83,7 +83,8 @@ services:
       LOGTO_PORT: ${LOGTO_PORT:-3001}
       ADMIN_PORT: ${LOGTO_ADMIN_PORT:-3002}
       ENDPOINT: ${LOGTO_ENDPOINT:-https://auth.local}
-      ADMIN_ENDPOINT: ${LOGTO_ADMIN_ENDPOINT:-https://admin.local}
+      ADMIN_ENDPOINT: ${LOGTO_ADMIN_ENDPOINT:-https://admin.auth.local}
+      TRUST_PROXY_HEADER: ${LOGTO_TRUST_PROXY_HEADER:-true}
     volumes:
       - logto_data:/var/lib/logto
     networks:
@@ -93,12 +94,9 @@ services:
       - "traefik.http.routers.logto.rule=Host(`auth.local`)"
       - "traefik.http.routers.logto.entrypoints=websecure"
       - "traefik.http.routers.logto.tls=true"
-      - "traefik.http.routers.logto.middlewares=logto-root-redirect"
-      - "traefik.http.middlewares.logto-root-redirect.redirectregex.regex=^https://auth\\.local/$"
-      - "traefik.http.middlewares.logto-root-redirect.redirectregex.replacement=https://auth.local/console"
-      - "traefik.http.middlewares.logto-root-redirect.redirectregex.permanent=false"
+      - "traefik.http.routers.logto.service=logto"
       - "traefik.http.services.logto.loadbalancer.server.port=3001"
-      - "traefik.http.routers.logto-admin.rule=Host(`admin.local`)"
+      - "traefik.http.routers.logto-admin.rule=Host(`admin.auth.local`)"
       - "traefik.http.routers.logto-admin.entrypoints=websecure"
       - "traefik.http.routers.logto-admin.tls=true"
       - "traefik.http.routers.logto-admin.service=logto-admin"
