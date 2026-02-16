@@ -8,8 +8,16 @@ services:
     ports:
       - "80:80"
       - "443:443"
+      - "3001:3001"
       - "3002:3002"
+      - "5000:5000"
+      - "4000:4000"
+      - "5432:5432"
+      - "5678:5678"
       - "8090:8080"  # Dashboard
+      - "8200:8200"
+      - "11434:11434"
+
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - ../ai-stack-homelab/configs/traefik/traefik.yml:/etc/traefik/traefik.yml:ro
