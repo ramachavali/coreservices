@@ -52,7 +52,7 @@ services:
       start_period: 10s
 
   logto:
-    image: logto/logto:latest
+    image: svhd/logto:${TAG-latest}
     container_name: logto
     restart: unless-stopped
     depends_on:
@@ -85,7 +85,7 @@ services:
       start_period: 20s
 
   logto-db:
-    image: postgres:15
+    image: postgres:18
     container_name: logto-db
     restart: unless-stopped
     environment:
@@ -93,7 +93,7 @@ services:
       POSTGRES_PASSWORD: ${LOGTO_DB_PASSWORD:-logto_pass}
       POSTGRES_DB: ${LOGTO_DB_NAME:-logto_db}
     volumes:
-      - logto_db_data:/var/lib/postgresql/data
+      - logto_db_data_pg18:/var/lib/postgresql
     networks:
       - core-network
     healthcheck:
@@ -139,7 +139,14 @@ networks:
 
 volumes:
   traefik_certs:
+    name: traefik_certs
   traefik_logs:
+    name: traefik_logs
   vault_data:
+    name: vault_data
   logto_data:
+    name: logto_data
   logto_db_data:
+    name: logto_db_data
+  logto_db_data_pg18:
+    name: logto_db_data_pg18

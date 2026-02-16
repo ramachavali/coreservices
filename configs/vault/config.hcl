@@ -1,10 +1,17 @@
+ui            = true
+cluster_addr  = "http://127.0.0.1:8201"
+api_addr      = "https://127.0.0.1:8200"
+disable_mlock = true
+
+storage "raft" {
+  path    = "/vault/data"
+  node_id = "127.0.0.1"
+ }
+
 listener "tcp" {
-  address = "0.0.0.0:8200"
+  address       = "0.0.0.0:8200"
+  cluster_address = "0.0.0.0:8201"
   tls_disable = 1
+  #tls_cert_file = "/etc/vault/domain.crt"
+  #tls_key_file = "/etc/vault/domain.key"
 }
-
-storage "file" {
-  path = "/vault/data"
-}
-
-ui = true
