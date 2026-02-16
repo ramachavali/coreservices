@@ -40,6 +40,7 @@ services:
       VAULT_ADDR: http://0.0.0.0:8200
     volumes:
       - vault_data:/vault/data
+      - vault_logs:/vault/logs
       - ./configs/vault/config.hcl:/vault/config/config.hcl:ro
     command: server -config=/vault/config/config.hcl
     networks:
@@ -144,6 +145,8 @@ volumes:
     name: traefik_logs
   vault_data:
     name: vault_data
+  vault_logs:
+    name: vault_logs
   logto_data:
     name: logto_data
   logto_db_data:
