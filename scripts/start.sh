@@ -8,10 +8,21 @@ set -o nounset
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$PROJECT_ROOT"
 
+COMPOSE_CMD=(docker-compose)
+
 # Load env if present
 if [ -f ./.rendered.env ]; then
+  COMPOSE_CMD+=(--env-file ./.rendered.env)
   # shellcheck disable=SC1091
+  set -a
   source ./.rendered.env
+  set +a
+fi
+
+if [ -z "${TAG+x}" ]; then
+  TAG=latest
+elif [ -f ./.rendered.env ] && ! grep -q '^TAG=' ./.rendered.env; then
+  TAG=latest
 fi
 
 echo "🚀 Starting core services (traefik, vault, logto, logto-db, core-frontend)..."
@@ -32,7 +43,7 @@ if [ -z "$LOGTO_DB_PASSWORD" ]; then
 fi
 
 echo "Starting base services (traefik, vault, logto-db)..."
-docker-compose up -d traefik logto-db vault
+"${COMPOSE_CMD[@]}" up -d traefik logto-db vault
 
 echo "Checking logto-db readiness..."
 for i in {1..20}; do
@@ -57,29 +68,29 @@ if [ "$LOGTO_DB_SEED_ON_START" = "1" ] && [ "$APP_TYPE_EXISTS" != "1" ]; then
   echo "Base Logto schema not found (application_type missing). Bootstrapping database..."
   if [ "$LOGTO_ALTERATION_VERBOSE" = "1" ]; then
     echo "  Running: docker-compose run --rm --no-deps --entrypoint sh -e CI=true -e NPM_CONFIG_LOGLEVEL=verbose logto -lc 'npm run cli db seed -- --swe'"
-    docker-compose run --rm --no-deps --entrypoint sh -e CI=true -e NPM_CONFIG_LOGLEVEL=verbose logto -lc "npm run cli db seed -- --swe"
+    "${COMPOSE_CMD[@]}" run --rm --no-deps --entrypoint sh -e CI=true -e NPM_CONFIG_LOGLEVEL=verbose logto -lc "npm run cli db seed -- --swe"
   else
-    docker-compose run --rm --no-deps --entrypoint sh -e CI=true logto -lc "npm run cli db seed -- --swe"
+    "${COMPOSE_CMD[@]}" run --rm --no-deps --entrypoint sh -e CI=true logto -lc "npm run cli db seed -- --swe"
   fi
 fi
 
 if [ "$LOGTO_ALTERATION_VERBOSE" = "1" ]; then
   echo "  Target version: ${LOGTO_ALTERATION_TARGET_VERSION}"
   echo "  Running: docker-compose run --rm --no-deps --entrypoint sh -e CI=true -e NPM_CONFIG_LOGLEVEL=verbose -e LOGTO_ALTERATION_TARGET_VERSION logto -lc '${ALTERATION_CMD}'"
-  docker-compose run --rm --no-deps --entrypoint sh -e CI=true -e NPM_CONFIG_LOGLEVEL=verbose -e LOGTO_ALTERATION_TARGET_VERSION logto -lc "$ALTERATION_CMD"
+  "${COMPOSE_CMD[@]}" run --rm --no-deps --entrypoint sh -e CI=true -e NPM_CONFIG_LOGLEVEL=verbose -e LOGTO_ALTERATION_TARGET_VERSION logto -lc "$ALTERATION_CMD"
 else
-  docker-compose run --rm --no-deps --entrypoint sh -e CI=true -e LOGTO_ALTERATION_TARGET_VERSION logto -lc "$ALTERATION_CMD"
+  "${COMPOSE_CMD[@]}" run --rm --no-deps --entrypoint sh -e CI=true -e LOGTO_ALTERATION_TARGET_VERSION logto -lc "$ALTERATION_CMD"
 fi
 
 echo "Starting Logto and core frontend..."
-docker-compose up -d logto core-frontend
+"${COMPOSE_CMD[@]}" up -d logto core-frontend
 
 echo "Waiting for services to report running status..."
 sleep 5
 
 services=(traefik logto logto-db vault core-frontend)
 for s in "${services[@]}"; do
-  if docker-compose ps --services --filter "status=running" | grep -q "^$s$"; then
+  if "${COMPOSE_CMD[@]}" ps --services --filter "status=running" | grep -q "^$s$"; then
     echo "  ✅ $s is running"
   else
     echo "  ⚠️ $s is not running yet - check logs with: docker-compose logs $s"

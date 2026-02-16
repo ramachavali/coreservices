@@ -91,6 +91,10 @@ services:
       - "traefik.http.routers.logto.rule=Host(`auth.local`)"
       - "traefik.http.routers.logto.entrypoints=websecure"
       - "traefik.http.routers.logto.tls=true"
+      - "traefik.http.routers.logto.middlewares=logto-root-redirect"
+      - "traefik.http.middlewares.logto-root-redirect.redirectregex.regex=^https://auth\\.local/$"
+      - "traefik.http.middlewares.logto-root-redirect.redirectregex.replacement=https://auth.local/console"
+      - "traefik.http.middlewares.logto-root-redirect.redirectregex.permanent=false"
       - "traefik.http.services.logto.loadbalancer.server.port=3001"
     healthcheck:
       test: ["CMD-SHELL", "wget -q --spider http://127.0.0.1:3001/status || exit 1"]
