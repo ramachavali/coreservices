@@ -81,6 +81,7 @@ services:
       LOGTO_APP_SECRET: ${LOGTO_APP_SECRET:-change-me}
       LOGTO_HOST: 0.0.0.0
       LOGTO_PORT: ${LOGTO_PORT:-3001}
+      ENDPOINT: ${LOGTO_ENDPOINT:-https://auth.local}
     volumes:
       - logto_data:/var/lib/logto
     networks:
@@ -92,7 +93,7 @@ services:
       - "traefik.http.routers.logto.tls=true"
       - "traefik.http.services.logto.loadbalancer.server.port=3001"
     healthcheck:
-      test: ["CMD-SHELL", "wget -q --spider http://127.0.0.1:3001/ || exit 1"]
+      test: ["CMD-SHELL", "wget -q --spider http://127.0.0.1:3001/status || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 3
