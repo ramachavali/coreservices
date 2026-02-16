@@ -26,7 +26,8 @@ if [ -z "$LOGTO_DB_PASSWORD" ]; then
   exit 1
 fi
 
-docker-compose up -d traefik logto logto-db vault core-frontend
+echo "Starting base services (traefik, vault, logto-db)..."
+docker-compose up -d traefik logto-db vault
 
 echo "Checking logto-db readiness..."
 for i in {1..20}; do
@@ -41,6 +42,12 @@ for i in {1..20}; do
   fi
   sleep 2
 done
+
+echo "Deploying Logto database alterations..."
+docker-compose run --rm --no-deps logto npm run alteration deploy
+
+echo "Starting Logto and core frontend..."
+docker-compose up -d logto core-frontend
 
 echo "Waiting for services to report running status..."
 sleep 5
