@@ -8,6 +8,7 @@ services:
     ports:
       - "80:80"
       - "443:443"
+      - "3002:3002"
       - "8090:8080"  # Dashboard
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
@@ -83,7 +84,7 @@ services:
       LOGTO_PORT: ${LOGTO_PORT:-3001}
       ADMIN_PORT: ${LOGTO_ADMIN_PORT:-3002}
       ENDPOINT: ${LOGTO_ENDPOINT:-https://auth.local}
-      ADMIN_ENDPOINT: ${LOGTO_ADMIN_ENDPOINT:-https://admin.auth.local}
+      ADMIN_ENDPOINT: ${LOGTO_ADMIN_ENDPOINT:-https://auth.local:3002}
       TRUST_PROXY_HEADER: ${LOGTO_TRUST_PROXY_HEADER:-true}
     volumes:
       - logto_data:/var/lib/logto
@@ -96,8 +97,8 @@ services:
       - "traefik.http.routers.logto.tls=true"
       - "traefik.http.routers.logto.service=logto"
       - "traefik.http.services.logto.loadbalancer.server.port=3001"
-      - "traefik.http.routers.logto-admin.rule=Host(`admin.auth.local`)"
-      - "traefik.http.routers.logto-admin.entrypoints=websecure"
+      - "traefik.http.routers.logto-admin.rule=Host(`auth.local`)"
+      - "traefik.http.routers.logto-admin.entrypoints=websecure-admin"
       - "traefik.http.routers.logto-admin.tls=true"
       - "traefik.http.routers.logto-admin.service=logto-admin"
       - "traefik.http.services.logto-admin.loadbalancer.server.port=3002"
