@@ -10,7 +10,7 @@ def home():
     links = [
         {
             "name": "Vault UI",
-            "url": os.getenv("VAULT_UI_URL", "http://localhost:8200/ui"),
+            "url": os.getenv("VAULT_UI_URL", "https://vault.local"),
             "description": "Secrets management and policy administration",
         },
         {

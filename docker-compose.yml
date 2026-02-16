@@ -52,6 +52,12 @@ services:
       '
     networks:
       - core-network
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.vault.rule=Host(`vault.local`)"
+      - "traefik.http.routers.vault.entrypoints=websecure"
+      - "traefik.http.routers.vault.tls=true"
+      - "traefik.http.services.vault.loadbalancer.server.port=8200"
     healthcheck:
       test: ["CMD-SHELL", "vault status -address=http://127.0.0.1:8200 >/dev/null 2>&1; code=$$?; [ $$code -eq 0 ] || [ $$code -eq 2 ]"]
       interval: 30s
@@ -122,7 +128,7 @@ services:
         condition: service_started
     environment:
       PORTAL_TITLE: ${PORTAL_TITLE:-Core Services Portal}
-      VAULT_UI_URL: ${VAULT_UI_URL:-http://localhost:8200/ui}
+      VAULT_UI_URL: ${VAULT_UI_URL:-https://vault.local}
       LOGTO_UI_URL: ${LOGTO_UI_URL:-https://auth.local}
       TRAEFIK_UI_URL: ${TRAEFIK_UI_URL:-https://traefik.local}
     networks:
