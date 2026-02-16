@@ -59,7 +59,8 @@ services:
       - "traefik.http.routers.vault.rule=Host(`vault.local`)"
       - "traefik.http.routers.vault.entrypoints=websecure"
       - "traefik.http.routers.vault.tls=true"
-      - "traefik.http.routers.vault.service=vault"
+      # Optional: router.service auto-resolves for single-service containers
+      # - "traefik.http.routers.vault.service=vault"
       - "traefik.http.services.vault.loadbalancer.server.port=8200"
     healthcheck:
       test: ["CMD-SHELL", "vault status -address=http://127.0.0.1:8200 >/dev/null 2>&1; code=$$?; [ $$code -eq 0 ] || [ $$code -eq 2 ]"]
@@ -153,7 +154,8 @@ services:
       - "traefik.http.routers.core-frontend.rule=Host(`core.local`)"
       - "traefik.http.routers.core-frontend.entrypoints=websecure"
       - "traefik.http.routers.core-frontend.tls=true"
-      - "traefik.http.routers.core-frontend.service=core-frontend"
+      # Optional: router.service auto-resolves for single-service containers
+      # - "traefik.http.routers.core-frontend.service=core-frontend"
       - "traefik.http.services.core-frontend.loadbalancer.server.port=5000"
     healthcheck:
       test: ["CMD-SHELL", "python -c 'import urllib.request; urllib.request.urlopen(\"http://127.0.0.1:5000/health\")'"]
