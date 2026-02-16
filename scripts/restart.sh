@@ -16,28 +16,13 @@ fi
 
 echo "🔄 Restarting Logto services..."
 
-<<<<<<< HEAD
 services=(logto-db logto vault core-frontend)
 for service in "${services[@]}"; do
   echo "Restarting $service..."
   docker-compose restart "$service" || docker-compose up -d "$service"
 done
-=======
-echo "Ensuring database is running..."
-docker-compose up -d logto-db
-
-echo "Restarting logto container..."
-docker-compose restart logto || docker-compose up -d logto
-
-echo "Deploying alterations after restart..."
-./scripts/logto-alteration-deploy.sh
->>>>>>> 4590ac3 (v3 - core services, w traefik, vault, logto)
 
 echo "Checking final service status..."
 docker-compose ps logto logto-db core-frontend
 
-<<<<<<< HEAD
 echo "Restart flow complete."
-=======
-echo "Restart flow complete."
->>>>>>> 4590ac3 (v3 - core services, w traefik, vault, logto)
