@@ -24,6 +24,38 @@ cd ../ai-stack-homelab
 docker-compose up -d
 ```
 
+Service lifecycle scripts
+
+Use the included scripts for day-to-day operations:
+
+```bash
+cd /Users/rama/work/coreservices-homelab
+./scripts/setup.sh
+./scripts/start.sh
+```
+
+- `./scripts/start.sh`:
+	- starts `traefik`, `vault`, `logto-db`
+	- seeds Logto base schema if missing (`LOGTO_DB_SEED_ON_START=1`)
+	- deploys Logto database alterations to `LOGTO_ALTERATION_TARGET_VERSION` (default `1.36.0`)
+	- starts `logto` and `core-frontend`
+
+- `./scripts/restart.sh`:
+	- restarts `logto`
+	- runs alteration deploy post-restart
+	- prints final service status
+
+- `./scripts/logto-alteration-deploy.sh`:
+	- runs `npm run cli db alteration deploy -- <target-version>` in a one-shot container
+	- intended for upgrade/restart maintenance workflows
+
+Useful overrides:
+
+```bash
+LOGTO_ALTERATION_TARGET_VERSION=1.36.0 ./scripts/start.sh
+LOGTO_ALTERATION_VERBOSE=0 ./scripts/restart.sh
+```
+
 Notes
 
 - Traefik reads configuration from `../ai-stack-homelab/configs/traefik/traefik.yml` and `dynamic.yml`.
@@ -44,7 +76,7 @@ vault operator unseal $(awk '/^Unseal Key 1:/ {print $4}' vault-init.txt)
 grep 'Initial Root Token:' -A0 vault-init.txt || true
 ```
 
-- `logto`: Logto auth server (image `logto/logto:latest`). Provide `LOGTO_DATABASE_URL` and other env vars in your `.env` or orchestrator. See `configs/logto/README.md`.
+- `logto`: Logto auth server (image `svhd/logto`). Provide `DB_URL` / `LOGTO_DATABASE_URL` and other env vars via `.env` / `.rendered.env`.
 
 - `core-frontend`: simple Flask UI without login at `https://core.local`, with quick links to Vault UI and Logto UI.
 

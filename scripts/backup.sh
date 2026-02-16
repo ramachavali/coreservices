@@ -33,9 +33,13 @@ echo "💾 Core services backup -> $BACKUP_DIR"
 
 # 1) Backup Vault data (volume)
 echo "  - Backing up Vault data (vault_data)..."
-docker run --rm -v "${PWD}:/work" -v vault_data:/data alpine sh -c "cd /data && tar czf /work/$BACKUP_DIR/vault_data_${DATE}.tar.gz ." 2>/dev/null || {
-  echo "    ⚠️ vault_data volume not found or empty"
-}
+if docker volume inspect vault_data >/dev/null 2>&1; then
+  docker run --rm -v vault_data:/data -v "$BACKUP_DIR":/backup alpine sh -c "cd /data && tar czf /backup/vault_data_${DATE}.tar.gz ." || {
+    echo "    ⚠️ Failed to archive vault_data volume"
+  }
+else
+  echo "    ⚠️ vault_data volume not found"
+fi
 
 # 2) Backup Traefik certs and logs
 echo "  - Backing up Traefik certs and logs..."

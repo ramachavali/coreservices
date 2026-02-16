@@ -22,6 +22,9 @@ echo ""
 echo -e "🔹 Starting cleanup..."
 echo ""
 
+echo -e "🛑 Stopping core services before cleanup..."
+docker-compose down --remove-orphans || true
+
 # Function to safely remove file/directory
 safe_remove() {
     local path="${1}"
@@ -46,10 +49,20 @@ safe_remove "./.env" "remove .env file"
 safe_remove "./.rendered.env" "remove .env file"
 
 echo -e "🐘 Cleaning up docker volumes..."
-docker volume rm $(docker volume ls |awk '{print $2}') 2>/dev/null || true
+for volume in traefik_certs traefik_logs vault_data vault_logs logto_data logto_db_data_pg18; do
+    if docker volume inspect "$volume" >/dev/null 2>&1; then
+        if docker volume rm "$volume" >/dev/null 2>&1; then
+            echo -e "  ✅ Removed volume: $volume"
+        else
+            echo -e "  ⚠️  Skipped volume (in use): $volume"
+        fi
+    else
+        echo -e "  ℹ️  Volume not found: $volume"
+    fi
+done
 
 echo -e "🐘 Cleaning up docker images..."
-docker rmi $(docker images -a -q) 2>/dev/null || true
+docker image prune -f || true
 
 echo -e "🐘 Cleaning up docker prune..."
 docker system prune -a -f 2>/dev/null || true

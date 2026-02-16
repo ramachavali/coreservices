@@ -19,6 +19,11 @@ echo "🚀 Starting core services (traefik, vault, logto, logto-db, core-fronten
 LOGTO_DB_USER="${LOGTO_DB_USER:-logto}"
 LOGTO_DB_PASSWORD="${LOGTO_DB_PASSWORD:-}"
 LOGTO_DB_NAME="${LOGTO_DB_NAME:-logto_db}"
+LOGTO_ALTERATION_VERBOSE="${LOGTO_ALTERATION_VERBOSE:-1}"
+LOGTO_ALTERATION_TARGET_VERSION="${LOGTO_ALTERATION_TARGET_VERSION:-1.36.0}"
+LOGTO_DB_SEED_ON_START="${LOGTO_DB_SEED_ON_START:-1}"
+
+ALTERATION_CMD="npm run cli db alteration deploy -- ${LOGTO_ALTERATION_TARGET_VERSION}"
 
 if [ -z "$LOGTO_DB_PASSWORD" ]; then
   echo "❌ LOGTO_DB_PASSWORD is not set."
@@ -44,7 +49,27 @@ for i in {1..20}; do
 done
 
 echo "Deploying Logto database alterations..."
-docker-compose run --rm --no-deps logto npm run alteration deploy
+APP_TYPE_EXISTS=$(docker exec -e PGPASSWORD="$LOGTO_DB_PASSWORD" logto-db \
+  psql -U "$LOGTO_DB_USER" -d "$LOGTO_DB_NAME" -tAc \
+  "select 1 from pg_type where typname = 'application_type' limit 1;" || true)
+
+if [ "$LOGTO_DB_SEED_ON_START" = "1" ] && [ "$APP_TYPE_EXISTS" != "1" ]; then
+  echo "Base Logto schema not found (application_type missing). Bootstrapping database..."
+  if [ "$LOGTO_ALTERATION_VERBOSE" = "1" ]; then
+    echo "  Running: docker-compose run --rm --no-deps --entrypoint sh -e CI=true -e NPM_CONFIG_LOGLEVEL=verbose logto -lc 'npm run cli db seed -- --swe'"
+    docker-compose run --rm --no-deps --entrypoint sh -e CI=true -e NPM_CONFIG_LOGLEVEL=verbose logto -lc "npm run cli db seed -- --swe"
+  else
+    docker-compose run --rm --no-deps --entrypoint sh -e CI=true logto -lc "npm run cli db seed -- --swe"
+  fi
+fi
+
+if [ "$LOGTO_ALTERATION_VERBOSE" = "1" ]; then
+  echo "  Target version: ${LOGTO_ALTERATION_TARGET_VERSION}"
+  echo "  Running: docker-compose run --rm --no-deps --entrypoint sh -e CI=true -e NPM_CONFIG_LOGLEVEL=verbose -e LOGTO_ALTERATION_TARGET_VERSION logto -lc '${ALTERATION_CMD}'"
+  docker-compose run --rm --no-deps --entrypoint sh -e CI=true -e NPM_CONFIG_LOGLEVEL=verbose -e LOGTO_ALTERATION_TARGET_VERSION logto -lc "$ALTERATION_CMD"
+else
+  docker-compose run --rm --no-deps --entrypoint sh -e CI=true -e LOGTO_ALTERATION_TARGET_VERSION logto -lc "$ALTERATION_CMD"
+fi
 
 echo "Starting Logto and core frontend..."
 docker-compose up -d logto core-frontend
