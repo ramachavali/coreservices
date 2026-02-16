@@ -34,15 +34,22 @@ services:
     image: hashicorp/vault:latest
     container_name: vault
     restart: unless-stopped
+    cap_add:
+      - IPC_LOCK
     security_opt:
       - no-new-privileges:true
+    user: root
     environment:
       VAULT_ADDR: http://0.0.0.0:8200
     volumes:
       - vault_data:/vault/data
       - vault_logs:/vault/logs
       - ./configs/vault/config.hcl:/vault/config/config.hcl:ro
-    command: server -config=/vault/config/config.hcl
+    command: >
+      sh -ec '
+      chown -R vault:vault /vault/data /vault/logs;
+      exec su vault -s /bin/sh -c "vault server -config=/vault/config/config.hcl"
+      '
     networks:
       - core-network
     healthcheck:
@@ -69,7 +76,6 @@ services:
       LOGTO_PORT: ${LOGTO_PORT:-3000}
     volumes:
       - logto_data:/var/lib/logto
-      - ./configs/logto:/etc/logto:ro
     networks:
       - core-network
     labels:
