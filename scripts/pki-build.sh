@@ -1,9 +1,7 @@
 #!/usr/bin/env bash
 set -o errexit
 set -o nounset
-
-set -x
-set -euo pipefail
+set -o pipefail
 
 usage() {
   cat <<'EOF'
@@ -28,6 +26,8 @@ Outputs:
   <out-dir>/nginx/<hostname>/privkey.pem
   <out-dir>/nginx/<hostname>/cert.pem
   <out-dir>/nginx/<hostname>/fullchain.pem
+  <out-dir>/traefik/key.pem
+  <out-dir>/traefik/cert.pem
   <out-dir>/client/ca_bundle.crt
 
 Notes:
@@ -92,6 +92,8 @@ LEAF_KEY="$NGINX_DIR/privkey.pem"
 CSR="$OUT_DIR/tmp/$HOSTNAME.csr"
 LEAF_CRT="$NGINX_DIR/cert.pem"
 FULLCHAIN="$NGINX_DIR/fullchain.pem"
+TRAEFIK_DIR="$OUT_DIR/traefik"
+mkdir -p "$TRAEFIK_DIR"
 
 echo "[+] Generating leaf key for $HOSTNAME"
 openssl genrsa -out "$LEAF_KEY" 2048
@@ -150,7 +152,7 @@ openssl x509 -req \
   -out "$LEAF_CRT" \
   -days "$DAYS_LEAF" -sha256 \
   -extfile "$V3" \
-#  -copy_extensions copy
+  -copy_extensions copy
 
 chmod 644 "$LEAF_CRT"
 
@@ -158,7 +160,13 @@ chmod 644 "$LEAF_CRT"
 cat "$LEAF_CRT" "$ROOT_CRT" > "$FULLCHAIN"
 chmod 644 "$FULLCHAIN"
 
-# 5) Client CA bundle
+# 5) Traefik-friendly output names
+cp "$LEAF_KEY" "$TRAEFIK_DIR/key.pem"
+cp "$FULLCHAIN" "$TRAEFIK_DIR/cert.pem"
+chmod 600 "$TRAEFIK_DIR/key.pem"
+chmod 644 "$TRAEFIK_DIR/cert.pem"
+
+# 6) Client CA bundle
 cp "$ROOT_CRT" "$CLIENT_BUNDLE"
 chmod 644 "$CLIENT_BUNDLE"
 
@@ -170,6 +178,9 @@ echo "Leaf (nginx) for $HOSTNAME:"
 echo "  $LEAF_KEY"
 echo "  $LEAF_CRT"
 echo "  $FULLCHAIN"
+echo "Traefik cert/key:"
+echo "  $TRAEFIK_DIR/key.pem"
+echo "  $TRAEFIK_DIR/cert.pem"
 echo "Client CA bundle (install on laptop):"
 echo "  $CLIENT_BUNDLE"
 echo
