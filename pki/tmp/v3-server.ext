@@ -3,3 +3,18 @@ keyUsage = digitalSignature, keyEncipherment
 extendedKeyUsage = serverAuth
 subjectKeyIdentifier = hash
 authorityKeyIdentifier = keyid,issuer
+subjectAltName = @alt_names
+
+[alt_names]
+DNS.1 = traefik.local
+DNS.2 = auth.local
+DNS.3 = core.local
+DNS.4 = vault.local
+DNS.5 = open-webui.local
+DNS.6 = n8n.local
+DNS.7 = litellm.local
+DNS.8 = ollama.local
+DNS.9 = mcpo.local
+DNS.10 = searxng.local
+DNS.11 = portal.local
+DNS.12 = picoclaw.local

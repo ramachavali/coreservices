@@ -134,16 +134,25 @@ openssl req -new -key "$LEAF_KEY" -out "$CSR" -config "$CONF"
 
 # 3) Sign leaf
 V3="$OUT_DIR/tmp/v3-server.ext"
-cat > "$V3" <<'EOF'
+{
+  cat <<'EOF'
 basicConstraints = CA:FALSE
 keyUsage = digitalSignature, keyEncipherment
 extendedKeyUsage = serverAuth
 subjectKeyIdentifier = hash
 authorityKeyIdentifier = keyid,issuer
+subjectAltName = @alt_names
+
+[alt_names]
 EOF
+  i=1
+  for d in "${SANS[@]}"; do
+    echo "DNS.${i} = ${d}"
+    i=$((i+1))
+  done
+} > "$V3"
 
 echo "[+] Signing leaf certificate ($DAYS_LEAF days)"
-# -copy_extensions copy preserves SANs from CSR
 openssl x509 -req \
   -in "$CSR" \
   -CA "$ROOT_CRT" \
@@ -151,8 +160,7 @@ openssl x509 -req \
   -CAcreateserial \
   -out "$LEAF_CRT" \
   -days "$DAYS_LEAF" -sha256 \
-  -extfile "$V3" \
-  -copy_extensions copy
+  -extfile "$V3"
 
 chmod 644 "$LEAF_CRT"
 
