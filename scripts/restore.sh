@@ -4,9 +4,23 @@
 
 set -o errexit
 set -o nounset
+set -o pipefail
 
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$PROJECT_ROOT"
+
+COMPOSE_CMD=(docker-compose)
+
+compose_service_exists() {
+  local target="$1"
+  mapfile -t compose_services < <("${COMPOSE_CMD[@]}" config --services)
+  for svc in "${compose_services[@]}"; do
+    if [ "$svc" = "$target" ]; then
+      return 0
+    fi
+  done
+  return 1
+}
 
 if [ -f ./.rendered.env ]; then
   # shellcheck disable=SC1091
@@ -43,7 +57,7 @@ done
 
 if [ -z "$RESTORE_DATE" ]; then
   echo "Finding latest backup in $BACKUP_DIR"
-  RESTORE_DATE=$(ls -1 "$BACKUP_DIR" | sort -r | head -n1 | sed -E 's/.*_([0-9_]+)\.tar\.gz$/\1/' || true)
+  RESTORE_DATE=$(ls -1 "$BACKUP_DIR" 2>/dev/null | grep -Eo '[0-9]{8}_[0-9]{6}' | sort -ur | head -n1 || true)
 fi
 
 echo "Restore date: $RESTORE_DATE"
@@ -92,7 +106,12 @@ fi
 if [ -f "$BACKUP_DIR/logto_db_${RESTORE_DATE}.sql.gz" ]; then
   echo "Restoring logto-db..."
   if [ "$DRY_RUN" = false ]; then
-    docker-compose up -d logto-db
+    if compose_service_exists "logto-db"; then
+      "${COMPOSE_CMD[@]}" up -d logto-db
+    else
+      echo "❌ Service 'logto-db' not found in compose configuration"
+      exit 1
+    fi
     gunzip -c "$BACKUP_DIR/logto_db_${RESTORE_DATE}.sql.gz" | docker exec -i logto-db psql -U "$LOGTO_DB_USER" -d "$LOGTO_DB_NAME"
   fi
 fi

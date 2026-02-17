@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
 
-# Restart core auth services and redeploy Logto DB alterations.
+# Restart core services via compose service loop and redeploy Logto DB alterations.
 
 set -o errexit
 set -o nounset
+set -o pipefail
 
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$PROJECT_ROOT"
@@ -14,15 +15,20 @@ if [ -f ./.rendered.env ]; then
   source ./.rendered.env
 fi
 
-echo "🔄 Restarting Logto services..."
+echo "🔄 Restarting core services..."
 
-services=(logto-db logto vault core-frontend)
+mapfile -t services < <(docker-compose config --services)
 for service in "${services[@]}"; do
   echo "Restarting $service..."
   docker-compose restart "$service" || docker-compose up -d "$service"
 done
 
+if [ -x ./scripts/logto-alteration-deploy.sh ]; then
+  echo "Deploying Logto DB alterations..."
+  ./scripts/logto-alteration-deploy.sh
+fi
+
 echo "Checking final service status..."
-docker-compose ps logto logto-db core-frontend
+docker-compose ps
 
 echo "Restart flow complete."

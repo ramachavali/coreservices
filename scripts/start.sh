@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
 
-# Start core services: traefik, vault, logto, logto-db
+# Start core services via compose service loops.
 
 set -o errexit
 set -o nounset
+set -o pipefail
 
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$PROJECT_ROOT"
@@ -27,6 +28,17 @@ fi
 
 echo "🚀 Starting core services (traefik, vault, logto, logto-db, core-frontend)..."
 
+in_array() {
+  local needle="$1"
+  shift
+  for item in "$@"; do
+    if [ "$item" = "$needle" ]; then
+      return 0
+    fi
+  done
+  return 1
+}
+
 LOGTO_DB_USER="${LOGTO_DB_USER:-logto}"
 LOGTO_DB_PASSWORD="${LOGTO_DB_PASSWORD:-}"
 LOGTO_DB_NAME="${LOGTO_DB_NAME:-logto_db}"
@@ -43,7 +55,15 @@ if [ -z "$LOGTO_DB_PASSWORD" ]; then
 fi
 
 echo "Starting base services (traefik, vault, logto-db)..."
-"${COMPOSE_CMD[@]}" up -d traefik logto-db vault
+mapfile -t all_services < <("${COMPOSE_CMD[@]}" config --services)
+base_services=(traefik logto-db vault)
+
+for service in "${base_services[@]}"; do
+  if in_array "$service" "${all_services[@]}"; then
+    echo "  ▶ Starting ${service}..."
+    "${COMPOSE_CMD[@]}" up -d "$service"
+  fi
+done
 
 echo "Checking logto-db readiness..."
 for i in {1..20}; do
@@ -82,13 +102,18 @@ else
   "${COMPOSE_CMD[@]}" run --rm --no-deps --entrypoint sh -e CI=true -e LOGTO_ALTERATION_TARGET_VERSION logto -lc "$ALTERATION_CMD"
 fi
 
-echo "Starting Logto and core frontend..."
-"${COMPOSE_CMD[@]}" up -d logto core-frontend
+echo "Starting remaining services..."
+for service in "${all_services[@]}"; do
+  if ! in_array "$service" "${base_services[@]}"; then
+    echo "  ▶ Starting ${service}..."
+    "${COMPOSE_CMD[@]}" up -d "$service"
+  fi
+done
 
 echo "Waiting for services to report running status..."
 sleep 5
 
-services=(traefik logto logto-db vault core-frontend)
+services=("${all_services[@]}")
 for s in "${services[@]}"; do
   if "${COMPOSE_CMD[@]}" ps --services --filter "status=running" | grep -q "^$s$"; then
     echo "  ✅ $s is running"

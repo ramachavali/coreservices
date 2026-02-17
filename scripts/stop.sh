@@ -4,6 +4,7 @@
 
 set -o errexit
 set -o nounset
+set -o pipefail
 
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$PROJECT_ROOT"
@@ -25,12 +26,22 @@ done
 
 echo "🛑 Stopping core services..."
 
+mapfile -t services < <(docker-compose config --services)
+
 if [ "$FORCE" = true ]; then
     echo "⚡ Force stopping core services..."
-    docker-compose kill traefik logto logto-db vault core-frontend || true
+    for (( idx=${#services[@]}-1; idx>=0; idx-- )); do
+        service="${services[$idx]}"
+        echo "  ⏹ Killing ${service}..."
+        docker-compose kill "$service" || true
+    done
 else
     echo "🔄 Gracefully stopping core services..."
-    docker-compose stop traefik logto logto-db vault core-frontend || true
+    for (( idx=${#services[@]}-1; idx>=0; idx-- )); do
+        service="${services[$idx]}"
+        echo "  ⏹ Stopping ${service}..."
+        docker-compose stop "$service" || true
+    done
 fi
 
 echo "🧹 Bringing down containers (compose down)..."

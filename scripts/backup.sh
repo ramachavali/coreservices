@@ -4,9 +4,12 @@
 
 set -o errexit
 set -o nounset
+set -o pipefail
 
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$PROJECT_ROOT"
+
+COMPOSE_CMD=(docker-compose)
 
 if [ -f ./.rendered.env ]; then
   # shellcheck disable=SC1091
@@ -52,7 +55,7 @@ docker run --rm -v logto_data:/data -v "$BACKUP_DIR":/backup alpine sh -c "cd /d
 
 # 4) Dump logto-db (Postgres)
 echo "  - Dumping logto-db (Postgres)..."
-if docker-compose ps --services --filter "status=running" | grep -q "logto-db"; then
+if "${COMPOSE_CMD[@]}" ps --services --filter "status=running" | grep -q "^logto-db$"; then
   docker exec logto-db pg_dump -U "$LOGTO_DB_USER" "$LOGTO_DB_NAME" | gzip > "$BACKUP_DIR/logto_db_${DATE}.sql.gz" || true
 else
   echo "    ⚠️ logto-db not running; skipping DB dump"
