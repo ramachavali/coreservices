@@ -55,7 +55,10 @@ if [ -z "$LOGTO_DB_PASSWORD" ]; then
 fi
 
 echo "Starting base services (traefik, vault, logto-db)..."
-mapfile -t all_services < <("${COMPOSE_CMD[@]}" config --services)
+all_services=()
+for service in $("${COMPOSE_CMD[@]}" config --services); do
+  all_services+=("$service")
+done
 base_services=(traefik logto-db vault)
 
 for service in "${base_services[@]}"; do
