@@ -13,7 +13,10 @@ COMPOSE_CMD=(docker-compose)
 
 compose_service_exists() {
   local target="$1"
-  mapfile -t compose_services < <("${COMPOSE_CMD[@]}" config --services)
+  compose_services=()
+  while IFS= read -r svc; do
+    compose_services+=("$svc")
+  done < <("${COMPOSE_CMD[@]}" config --services)
   for svc in "${compose_services[@]}"; do
     if [ "$svc" = "$target" ]; then
       return 0

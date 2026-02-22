@@ -15,7 +15,6 @@ services:
       - "8090:8080"  # Dashboard
       - "8200:8200"
       - "11434:11434"
-
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - ../ai-stack-homelab/configs/traefik/traefik.yml:/etc/traefik/traefik.yml:ro
@@ -36,6 +35,11 @@ services:
       timeout: 10s
       retries: 3
       start_period: 10s
+    experimental:
+      plugins:
+        fail2ban:
+          moduleName: "github.com/tomMoulard/fail2ban"
+          version: "v0.8.9"
 
   vault:
     image: hashicorp/vault:latest

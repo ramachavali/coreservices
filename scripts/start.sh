@@ -56,9 +56,9 @@ fi
 
 echo "Starting base services (traefik, vault, logto-db)..."
 all_services=()
-for service in $("${COMPOSE_CMD[@]}" config --services); do
+while IFS= read -r service; do
   all_services+=("$service")
-done
+done < <("${COMPOSE_CMD[@]}" config --services)
 base_services=(traefik logto-db vault)
 
 for service in "${base_services[@]}"; do

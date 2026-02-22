@@ -17,7 +17,10 @@ fi
 
 echo "🔄 Restarting core services..."
 
-mapfile -t services < <(docker-compose config --services)
+services=()
+while IFS= read -r service; do
+  services+=("$service")
+done < <(docker-compose config --services)
 for service in "${services[@]}"; do
   echo "Restarting $service..."
   docker-compose restart "$service" || docker-compose up -d "$service"

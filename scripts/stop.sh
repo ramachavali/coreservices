@@ -26,7 +26,10 @@ done
 
 echo "🛑 Stopping core services..."
 
-mapfile -t services < <(docker-compose config --services)
+services=()
+while IFS= read -r service; do
+    services+=("$service")
+done < <(docker-compose config --services)
 
 if [ "$FORCE" = true ]; then
     echo "⚡ Force stopping core services..."
