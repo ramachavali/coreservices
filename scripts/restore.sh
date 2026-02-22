@@ -102,6 +102,16 @@ if [ -f "$BACKUP_DIR/logto_data_${RESTORE_DATE}.tar.gz" ]; then
   fi
 fi
 
+# Restore Grafana data
+if [ -f "$BACKUP_DIR/grafana_data_${RESTORE_DATE}.tar.gz" ]; then
+  echo "Restoring grafana_data..."
+  if [ "$DRY_RUN" = false ]; then
+    docker volume rm grafana_data 2>/dev/null || true
+    docker volume create grafana_data
+    docker run --rm -v grafana_data:/data -v "$BACKUP_DIR":/backup alpine sh -c "cd /data && tar xzf /backup/grafana_data_${RESTORE_DATE}.tar.gz"
+  fi
+fi
+
 # Restore logto-db
 if [ -f "$BACKUP_DIR/logto_db_${RESTORE_DATE}.sql.gz" ]; then
   echo "Restoring logto-db..."

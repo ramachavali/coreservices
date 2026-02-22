@@ -138,6 +138,29 @@ services:
       retries: 5
       start_period: 10s
 
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    environment:
+      GF_SERVER_ROOT_URL: ${GRAFANA_ROOT_URL:-https://grafana.local}
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}
+    volumes:
+      - grafana_data:/var/lib/grafana
+    networks:
+      - core-network
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=core-network"
+      - "traefik.http.routers.grafana.rule=Host(`grafana.local`)"
+      - "traefik.http.routers.grafana.entrypoints=websecure"
+      - "traefik.http.routers.grafana.tls=true"
+      - "traefik.http.routers.grafana.service=grafana"
+      - "traefik.http.services.grafana.loadbalancer.server.port=3000"
+
   core-frontend:
     build: ./services/core-frontend
     container_name: core-frontend
@@ -152,6 +175,7 @@ services:
       VAULT_UI_URL: ${VAULT_UI_URL:-https://vault.local}
       LOGTO_UI_URL: ${LOGTO_UI_URL:-https://auth.local}
       TRAEFIK_UI_URL: ${TRAEFIK_UI_URL:-https://traefik.local}
+      GRAFANA_UI_URL: ${GRAFANA_UI_URL:-https://grafana.local}
     networks:
       - core-network
     labels:
@@ -188,3 +212,5 @@ volumes:
     name: logto_data
   logto_db_data_pg18:
     name: logto_db_data_pg18
+  grafana_data:
+    name: grafana_data

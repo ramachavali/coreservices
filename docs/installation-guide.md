@@ -6,6 +6,7 @@ This guide installs only the core stack in `coreservices-homelab`:
 - Traefik (edge routing)
 - Vault (secrets)
 - Logto (auth)
+- Grafana (monitoring dashboards)
 - logto-db (Postgres for Logto)
 
 ## Prerequisites
@@ -14,6 +15,7 @@ This guide installs only the core stack in `coreservices-homelab`:
 - Host entries (or DNS) for local testing:
   - `traefik.local`
   - `auth.local`
+  - `grafana.local`
 
 ## Install
 

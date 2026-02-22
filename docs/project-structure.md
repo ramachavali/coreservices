@@ -27,7 +27,7 @@ coreservices-homelab/
 
 ## Responsibilities
 
-- `docker-compose.yml`: defines Traefik, Vault, Logto, and `logto-db`.
+- `docker-compose.yml`: defines Traefik, Vault, Logto, `logto-db`, Grafana, and core frontend.
 - `scripts/.unrendered.env`: template with generated secrets for Logto and DB.
 - `scripts/setup.sh`: renders `.env`/`.rendered.env` and prepares local dirs.
 - `scripts/start.sh`: validates env, starts services, verifies `logto-db` readiness.
@@ -46,4 +46,5 @@ coreservices-homelab/
 - `traefik_logs`
 - `vault_data`
 - `logto_data`
-- `logto_db_data`
+- `logto_db_data_pg18`
+- `grafana_data`

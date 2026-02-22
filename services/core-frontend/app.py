@@ -23,6 +23,11 @@ def home():
             "url": os.getenv("TRAEFIK_UI_URL", "https://traefik.local"),
             "description": "Routing and reverse-proxy status",
         },
+        {
+            "name": "Grafana",
+            "url": os.getenv("GRAFANA_UI_URL", "https://grafana.local"),
+            "description": "Metrics visualization and operational dashboards",
+        },
     ]
     return render_template(
         "index.html",

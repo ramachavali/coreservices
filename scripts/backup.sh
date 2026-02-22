@@ -53,6 +53,10 @@ docker run --rm -v traefik_logs:/data -v "$BACKUP_DIR":/backup alpine sh -c "cd 
 echo "  - Backing up Logto data (logto_data)..."
 docker run --rm -v logto_data:/data -v "$BACKUP_DIR":/backup alpine sh -c "cd /data && tar czf /backup/logto_data_${DATE}.tar.gz ." 2>/dev/null || true
 
+# 3b) Backup Grafana files (volume)
+echo "  - Backing up Grafana data (grafana_data)..."
+docker run --rm -v grafana_data:/data -v "$BACKUP_DIR":/backup alpine sh -c "cd /data && tar czf /backup/grafana_data_${DATE}.tar.gz ." 2>/dev/null || true
+
 # 4) Dump logto-db (Postgres)
 echo "  - Dumping logto-db (Postgres)..."
 if "${COMPOSE_CMD[@]}" ps --services --filter "status=running" | grep -q "^logto-db$"; then

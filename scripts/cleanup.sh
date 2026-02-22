@@ -49,7 +49,7 @@ safe_remove "./.env" "remove .env file"
 safe_remove "./.rendered.env" "remove .env file"
 
 echo -e "🐘 Cleaning up docker volumes..."
-for volume in traefik_certs traefik_logs vault_data vault_logs logto_data logto_db_data_pg18; do
+for volume in traefik_certs traefik_logs vault_data vault_logs logto_data logto_db_data_pg18 grafana_data; do
     if docker volume inspect "$volume" >/dev/null 2>&1; then
         if docker volume rm "$volume" >/dev/null 2>&1; then
             echo -e "  ✅ Removed volume: $volume"

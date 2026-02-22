@@ -26,7 +26,7 @@ elif [ -f ./.rendered.env ] && ! grep -q '^TAG=' ./.rendered.env; then
   TAG=latest
 fi
 
-echo "🚀 Starting core services (traefik, vault, logto, logto-db, core-frontend)..."
+echo "🚀 Starting core services (traefik, vault, logto, logto-db, grafana, core-frontend)..."
 
 in_array() {
   local needle="$1"
@@ -126,5 +126,6 @@ echo ""
 echo "Core services started."
 echo "Traefik dashboard: https://traefik.local (if configured)"
 echo "Logto (auth): https://auth.local (if configured)"
+echo "Grafana: https://grafana.local"
 echo "Vault UI: http://localhost:8200 (if accessible)"
 echo "Core Frontend: https://core.local"

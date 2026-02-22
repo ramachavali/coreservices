@@ -7,6 +7,7 @@ Shared infrastructure stack for local routing, auth, and secrets.
 - Traefik (TLS + reverse proxy)
 - Vault
 - Logto + `logto-db`
+- Grafana
 - Core frontend (`core.local`)
 
 This stack owns Docker network `core-network`, which `ai-stack-homelab` attaches to.
@@ -31,13 +32,14 @@ cd /Users/rama/work/ai-stack-homelab
 Add to `/etc/hosts`:
 
 ```text
-127.0.0.1 traefik.local auth.local core.local vault.local
+127.0.0.1 traefik.local auth.local grafana.local core.local vault.local
 ```
 
 ## URLs
 
 - https://traefik.local
 - https://auth.local
+- https://grafana.local
 - https://core.local
 - https://vault.local
 

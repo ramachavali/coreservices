@@ -4,6 +4,7 @@ This document validates the `coreservices-homelab` stack only:
 - `traefik`
 - `vault`
 - `logto`
+- `grafana`
 - `logto-db`
 
 ## 1) Preflight
@@ -23,7 +24,7 @@ Expected: clean rendered config output.
 docker-compose ps
 ```
 
-Expected: all four services are `Up` (or `healthy` when healthchecks pass).
+Expected: all five services are `Up` (or `healthy` when healthchecks pass).
 
 ## 3) Service Checks
 
@@ -54,9 +55,18 @@ curl -fsS http://127.0.0.1:3000/ || true
 docker-compose logs --tail=100 traefik
 ```
 
+### `grafana`
+
+```bash
+curl -kfsS https://grafana.local/api/health
+```
+
+Expected: JSON containing a healthy database and service status.
+
 Optional browser checks:
 - `https://traefik.local`
 - `https://auth.local`
+- `https://grafana.local`
 
 ## 4) Backup / Restore Checks
 

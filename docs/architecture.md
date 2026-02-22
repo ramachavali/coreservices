@@ -1,6 +1,6 @@
 # Core Services Architecture
 
-This document describes the core-services cluster (Traefik, Vault, Logto + logto-db) and how it operates standalone and integrates with application stacks (for example `ai-stack-homelab`).
+This document describes the core-services cluster (Traefik, Vault, Logto + logto-db, Grafana) and how it operates standalone and integrates with application stacks (for example `ai-stack-homelab`).
 
 ## Overview
 
@@ -12,6 +12,7 @@ Primary components:
 - Vault: Secrets manager for credentials, TLS keys, and dynamic secrets. Runs with a file backend by default (see `configs/vault/config.hcl`) — not recommended for production without TLS and auto-unseal.
 - Logto: Authentication and identity provider. Requires a persistent database (`logto-db`).
 - logto-db: Postgres backing Logto's data.
+- Grafana: Metrics and dashboard UI for operational visibility.
 
 All core services are attached to a Docker network named `core-network` which is meant to be created and owned by the core services docker-compose. Application stacks that need routing/auth should join the `core-network` (declared external in their compose) so Traefik and other core services can reach them.
 
@@ -74,6 +75,7 @@ Core services maintain important volumes:
 - `traefik_logs` — Traefik logs
 - `logto_data` — Logto application data
 - `logto_db_data` — Postgres data for Logto
+- `grafana_data` — Grafana dashboards, users, and settings
 
 Use `./scripts/backup.sh` and `./scripts/restore.sh` to manage backups for these volumes and the Logto database dump.
 

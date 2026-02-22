@@ -54,6 +54,7 @@ setup_tls_certificates() {
   local sans=(
     "traefik.local"
     "auth.local"
+    "grafana.local"
     "core.local"
     "vault.local"
     "open-webui.local"
@@ -114,6 +115,7 @@ fi
 mkdir -p data/vault
 mkdir -p data/traefik
 mkdir -p data/logto
+mkdir -p data/grafana
 
 chmod 700 data/vault || true
 
