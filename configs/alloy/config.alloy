@@ -1,0 +1,369 @@
+// ============================================================
+// Grafana Alloy config — coreservices-homelab
+//
+// Sources pulled from grafana/alloy-scenarios:
+//   - docker-monitoring  → loki.source.docker pattern
+//   - logs-file          → local.file_match + loki.source.file (traefik, vault)
+//   - self-monitoring    → prometheus.exporter.self pattern
+//   - app-instrumentation/popular-logging-frameworks → stage.match Python parser
+//
+// Pipeline overview:
+//   Docker containers (logto, core-frontend, etc.)
+//     → discovery.docker + loki.source.docker
+//     → loki.process "container_logs"  (per-service stage.match parsing)
+//     → loki.write "loki_endpoint"
+//
+//   Traefik access log file (/var/log/traefik/access.log)
+//     → local.file_match + loki.source.file
+//     → loki.write "loki_endpoint"
+//
+//   Vault audit log dir (/vault/logs/)
+//     → local.file_match + loki.source.file
+//     → loki.write "loki_endpoint"
+//
+//   Alloy self-metrics → prometheus.remote_write (placeholder)
+// ============================================================
+
+livedebugging {
+  enabled = true
+}
+
+// ============================================================
+// SECTION 1: Docker container logs
+// Pulls logs from all running containers via the Docker socket.
+// Per-service parsing happens in loki.process "container_logs".
+//
+// Source: docker-monitoring/config.alloy + self-monitoring/config.alloy
+// ============================================================
+
+discovery.docker "containers" {
+  host = "unix:///var/run/docker.sock"
+}
+
+// Extract a clean container_name label (strips leading slash).
+// Also set instance label to the host.
+discovery.relabel "container_meta" {
+  targets = []
+
+  rule {
+    source_labels = ["__meta_docker_container_name"]
+    regex         = "/(.*)"
+    target_label  = "container_name"
+  }
+
+  rule {
+    target_label = "instance"
+    replacement  = constants.hostname
+  }
+}
+
+// Collect logs from all Docker containers via the Docker socket.
+// relabel_rules enriches each log stream with container_name + instance.
+loki.source.docker "all_containers" {
+  host          = "unix:///var/run/docker.sock"
+  targets       = discovery.docker.containers.targets
+  relabel_rules = discovery.relabel.container_meta.rules
+  forward_to    = [loki.process.container_logs.receiver]
+}
+
+// Per-service processing pipeline.
+// Each stage.match block handles one container; non-matching logs pass through
+// with only the default labels (container_name, instance).
+loki.process "container_logs" {
+  forward_to = [loki.write.loki_endpoint.receiver]
+
+  // ── Logto ──────────────────────────────────────────────────
+  // Logto (svhd/logto) emits structured JSON to stdout.
+  // Example line:
+  //   {"level":"info","message":"sign-in succeeded","userId":"abc","applicationId":"xyz","type":"SignIn","timestamp":"2024-01-01T00:00:00Z"}
+  stage.match {
+    pipeline_name = "logto"
+    selector      = "{container_name=\"logto\"}"
+
+    // Parse the JSON payload Logto writes to stdout
+    stage.json {
+      expressions = {
+        level    = "level",
+        message  = "message",
+        user_id  = "userId",
+        app_id   = "applicationId",
+        log_type = "type",
+      }
+    }
+
+    // Promote low-cardinality fields to indexed Loki labels
+    stage.labels {
+      values = {
+        level    = "level",
+        log_type = "log_type",
+      }
+    }
+
+    // High-cardinality fields go to structured metadata (searchable, not indexed)
+    stage.structured_metadata {
+      values = {
+        user_id = "user_id",
+        app_id  = "app_id",
+        message = "message",
+      }
+    }
+
+    stage.static_labels {
+      values = {
+        service_name = "logto",
+        job          = "logto",
+      }
+    }
+  }
+
+  // ── core-frontend (Python/Flask) ────────────────────────────
+  // Python logs format:
+  //   "2025-06-17 09:54:15,283 - main.py:25 - INFO - Starting application"
+  // Source: app-instrumentation/popular-logging-frameworks/alloy/helper.alloy
+  stage.match {
+    pipeline_name = "core-frontend"
+    selector      = "{container_name=\"core-frontend\"}"
+
+    stage.regex {
+      expression = "^(?P<timestamp>\\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2}:\\d{2},\\d{3}) - (?P<file>[^:]+):(?P<line_num>\\d+) - (?P<level>[^ ]+) - (?P<msg>.*)"
+    }
+
+    stage.labels {
+      values = {
+        level = "level",
+        file  = "file",
+      }
+    }
+
+    stage.timestamp {
+      source = "timestamp"
+      format = "2006-01-02 15:04:05,000"
+    }
+
+    stage.structured_metadata {
+      values = {
+        line_num = "line_num",
+      }
+    }
+
+    stage.template {
+      source   = "output"
+      template = "{{.file}}:{{.line_num}} - {{.level}} - {{.msg}}"
+    }
+
+    stage.output {
+      source = "output"
+    }
+
+    stage.static_labels {
+      values = {
+        service_name = "core-frontend",
+        job          = "core-frontend",
+      }
+    }
+  }
+
+  // ── logto-db (Postgres) ────────────────────────────────────
+  // Postgres logs are plain text; just label them cleanly.
+  stage.match {
+    pipeline_name = "logto-db"
+    selector      = "{container_name=\"logto-db\"}"
+
+    stage.static_labels {
+      values = {
+        service_name = "logto-db",
+        job          = "postgres",
+      }
+    }
+  }
+
+  // ── traefik (container logs, not access log file) ───────────
+  stage.match {
+    pipeline_name = "traefik"
+    selector      = "{container_name=\"traefik\"}"
+
+    stage.static_labels {
+      values = {
+        service_name = "traefik",
+        job          = "traefik",
+      }
+    }
+  }
+
+  // ── vault ───────────────────────────────────────────────────
+  stage.match {
+    pipeline_name = "vault"
+    selector      = "{container_name=\"vault\"}"
+
+    // Vault emits JSON log lines
+    stage.json {
+      expressions = {
+        level   = "@level",
+        message = "@message",
+        module  = "@module",
+      }
+    }
+
+    stage.labels {
+      values = {
+        level  = "level",
+        module = "module",
+      }
+    }
+
+    stage.static_labels {
+      values = {
+        service_name = "vault",
+        job          = "vault",
+      }
+    }
+  }
+
+  // ── grafana ─────────────────────────────────────────────────
+  stage.match {
+    pipeline_name = "grafana"
+    selector      = "{container_name=\"grafana\"}"
+
+    stage.static_labels {
+      values = {
+        service_name = "grafana",
+        job          = "grafana",
+      }
+    }
+  }
+}
+
+// ============================================================
+// SECTION 2: Traefik access log file
+// Traefik writes structured access logs to a file in the
+// traefik_logs volume → mounted into alloy at /var/log/traefik
+//
+// Source: logs-file/config.alloy
+// ============================================================
+
+local.file_match "traefik_access_log" {
+  path_targets = [{
+    "__path__" = "/var/log/traefik/access.log",
+    "job"      = "traefik-access",
+    "service_name" = "traefik",
+    "hostname" = constants.hostname,
+  }]
+  sync_period = "5s"
+}
+
+loki.source.file "traefik_access" {
+  targets       = local.file_match.traefik_access_log.targets
+  forward_to    = [loki.write.loki_endpoint.receiver]
+  tail_from_end = true
+}
+
+// ============================================================
+// SECTION 3: Vault audit log files
+// Vault writes audit logs to /vault/logs — mounted into alloy.
+//
+// Source: logs-file/config.alloy
+// ============================================================
+
+local.file_match "vault_audit_logs" {
+  path_targets = [{
+    "__path__" = "/vault/logs/*.log",
+    "job"      = "vault-audit",
+    "service_name" = "vault",
+    "hostname" = constants.hostname,
+  }]
+  sync_period = "5s"
+}
+
+loki.source.file "vault_audit" {
+  targets       = local.file_match.vault_audit_logs.targets
+  forward_to    = [loki.process.vault_audit_parse.receiver]
+  tail_from_end = true
+}
+
+// Vault audit log format (from vault audit enable file):
+// {"time":"...","type":"request","auth":{"display_name":"root",...},
+//  "request":{"operation":"update","path":"sys/audit/file",...}}
+loki.process "vault_audit_parse" {
+  forward_to = [loki.write.loki_endpoint.receiver]
+
+  stage.json {
+    expressions = {
+      type      = "type",       // "request" or "response"
+      operation = "request.operation",
+      path      = "request.path",
+      auth_name = "auth.display_name",
+    }
+  }
+
+  // Keep cardinality low: type ("request"/"response") and operation
+  // ("read","update","delete","list") are safe index labels.
+  stage.labels {
+    values = {
+      type      = "type",
+      operation = "operation",
+    }
+  }
+
+  stage.structured_metadata {
+    values = {
+      path      = "path",
+      auth_name = "auth_name",
+    }
+  }
+
+  stage.static_labels {
+    values = {
+      service_name = "vault",
+      job          = "vault-audit",
+    }
+  }
+}
+
+
+// ============================================================
+// SECTION 4: Alloy self-monitoring
+// Exposes Alloy's own health metrics.
+//
+// Source: self-monitoring/config.alloy
+// ============================================================
+
+prometheus.exporter.self "integrations_alloy_health" {}
+
+discovery.relabel "integrations_alloy_health" {
+  targets = prometheus.exporter.self.integrations_alloy_health.targets
+
+  rule {
+    target_label = "instance"
+    replacement  = constants.hostname
+  }
+
+  rule {
+    target_label = "container"
+    replacement  = "alloy"
+  }
+}
+
+prometheus.scrape "integrations_alloy_health" {
+  targets    = discovery.relabel.integrations_alloy_health.output
+  forward_to = [prometheus.remote_write.placeholder.receiver]
+  job_name   = "integrations/alloy"
+}
+
+// Placeholder — replace url with your Prometheus/Mimir endpoint when added.
+// Remove this block entirely if you don't want the connection-refused noise.
+prometheus.remote_write "placeholder" {
+  endpoint {
+    url = "http://prometheus:9090/api/v1/write"
+  }
+}
+
+// ============================================================
+// SECTION 5: Single Loki write endpoint
+// All pipelines above funnel here.
+// ============================================================
+
+loki.write "loki_endpoint" {
+  endpoint {
+    url = "http://loki:3100/loki/api/v1/push"
+  }
+}
