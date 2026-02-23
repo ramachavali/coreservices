@@ -56,7 +56,3 @@ else
 fi
 
 echo "Done."
-
-echo "Useful commands:"
-echo "  docker-compose ps" 
-echo "  docker-compose logs [service]"

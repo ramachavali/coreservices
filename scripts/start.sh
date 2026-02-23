@@ -127,8 +127,8 @@ done
 
 echo ""
 echo "Core services started."
-echo "Traefik dashboard: https://traefik.local (if configured)"
-echo "Logto (auth): https://auth.local (if configured)"
+echo "Traefik dashboard: https://traefik.local"
+echo "Logto (auth): https://auth.local"
 echo "Grafana: https://grafana.local"
-echo "Vault UI: http://localhost:8200 (if accessible)"
+echo "Vault UI: https://vault.local"
 echo "Core Frontend: https://core.local"
