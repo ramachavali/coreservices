@@ -198,9 +198,9 @@ loki.process "container_logs" {
     // Vault emits JSON log lines
     stage.json {
       expressions = {
-        level   = "@level",
-        message = "@message",
-        module  = "@module",
+        level   = "\"@level\"",
+        message = "\"@message\"",
+        module  = "\"@module\"",
       }
     }
 

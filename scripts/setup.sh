@@ -48,8 +48,8 @@ render_env() {
 setup_tls_certificates() {
   local pki_script="${PROJECT_ROOT}/scripts/pki-build.sh"
   local pki_dir="${PROJECT_ROOT}/pki"
-  local ca_name="Foolsbook Local Root CA"
-  local primary_hostname="traefik.local"
+  local ca_name="FoolsM4 Local Root CA"
+  local primary_hostname="foolsm4.local"
 
   local sans=(
     "traefik.local"
