@@ -11,6 +11,14 @@ cd "$PROJECT_ROOT"
 
 COMPOSE_CMD=(docker-compose)
 
+compose_volume_list() {
+  local compose_volumes=()
+  while IFS= read -r vol; do
+    [ -n "$vol" ] && compose_volumes+=("$vol")
+  done < <("${COMPOSE_CMD[@]}" config --volumes)
+  printf '%s\n' "${compose_volumes[@]}"
+}
+
 if [ -f ./.rendered.env ]; then
   # shellcheck disable=SC1091
   source ./.rendered.env
@@ -34,28 +42,21 @@ mkdir -p "$BACKUP_DIR"
 
 echo "💾 Core services backup -> $BACKUP_DIR"
 
-# 1) Backup Vault data (volume)
-echo "  - Backing up Vault data (vault_data)..."
-if docker volume inspect vault_data >/dev/null 2>&1; then
-  docker run --rm -v vault_data:/data -v "$BACKUP_DIR":/backup alpine sh -c "cd /data && tar czf /backup/vault_data_${DATE}.tar.gz ." || {
-    echo "    ⚠️ Failed to archive vault_data volume"
-  }
-else
-  echo "    ⚠️ vault_data volume not found"
-fi
+# 1) Backup all named Docker volumes from compose
+echo "  - Backing up named volumes from compose..."
+volumes=()
+while IFS= read -r v; do
+  [ -n "$v" ] && volumes+=("$v")
+done < <(compose_volume_list)
 
-# 2) Backup Traefik certs and logs
-echo "  - Backing up Traefik certs and logs..."
-docker run --rm -v traefik_certs:/data -v "$BACKUP_DIR":/backup alpine sh -c "cd /data && tar czf /backup/traefik_certs_${DATE}.tar.gz ." 2>/dev/null || true
-docker run --rm -v traefik_logs:/data -v "$BACKUP_DIR":/backup alpine sh -c "cd /data && tar czf /backup/traefik_logs_${DATE}.tar.gz ." 2>/dev/null || true
-
-# 3) Backup Logto files (volume)
-echo "  - Backing up Logto data (logto_data)..."
-docker run --rm -v logto_data:/data -v "$BACKUP_DIR":/backup alpine sh -c "cd /data && tar czf /backup/logto_data_${DATE}.tar.gz ." 2>/dev/null || true
-
-# 3b) Backup Grafana files (volume)
-echo "  - Backing up Grafana data (grafana_data)..."
-docker run --rm -v grafana_data:/data -v "$BACKUP_DIR":/backup alpine sh -c "cd /data && tar czf /backup/grafana_data_${DATE}.tar.gz ." 2>/dev/null || true
+for volume in "${volumes[@]}"; do
+  echo "    • $volume"
+  if docker volume inspect "$volume" >/dev/null 2>&1; then
+    docker run --rm -v "$volume:/data" -v "$BACKUP_DIR":/backup alpine sh -c "cd /data && tar czf /backup/${volume}_${DATE}.tar.gz ." 2>/dev/null || true
+  else
+    echo "      ⚠️ Volume $volume not found"
+  fi
+done
 
 # 4) Dump logto-db (Postgres)
 echo "  - Dumping logto-db (Postgres)..."

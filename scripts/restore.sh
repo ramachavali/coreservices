@@ -11,6 +11,14 @@ cd "$PROJECT_ROOT"
 
 COMPOSE_CMD=(docker-compose)
 
+compose_volume_list() {
+  local compose_volumes=()
+  while IFS= read -r vol; do
+    [ -n "$vol" ] && compose_volumes+=("$vol")
+  done < <("${COMPOSE_CMD[@]}" config --volumes)
+  printf '%s\n' "${compose_volumes[@]}"
+}
+
 compose_service_exists() {
   local target="$1"
   compose_services=()
@@ -69,51 +77,26 @@ if [ "$DRY_RUN" = true ]; then
   echo "DRY RUN: no changes will be made"
 fi
 
-# Restore Vault data
-if [ -f "$BACKUP_DIR/vault_data_${RESTORE_DATE}.tar.gz" ]; then
-  echo "Restoring vault_data..."
-  if [ "$DRY_RUN" = false ]; then
-    docker volume rm vault_data 2>/dev/null || true
-    docker volume create vault_data
-    docker run --rm -v vault_data:/data -v "$BACKUP_DIR":/backup alpine sh -c "cd /data && tar xzf /backup/vault_data_${RESTORE_DATE}.tar.gz"
-  fi
-else
-  echo "No vault backup found for date: $RESTORE_DATE"
-fi
+# Restore all named compose volumes
+echo "Restoring named volumes from compose..."
+volumes=()
+while IFS= read -r v; do
+  [ -n "$v" ] && volumes+=("$v")
+done < <(compose_volume_list)
 
-# Restore Traefik certs/logs
-for v in traefik_certs traefik_logs; do
-  if [ -f "$BACKUP_DIR/${v}_${RESTORE_DATE}.tar.gz" ]; then
-    echo "Restoring ${v}..."
+for volume in "${volumes[@]}"; do
+  archive="$BACKUP_DIR/${volume}_${RESTORE_DATE}.tar.gz"
+  if [ -f "$archive" ]; then
+    echo "Restoring ${volume}..."
     if [ "$DRY_RUN" = false ]; then
-      docker volume rm ${v} 2>/dev/null || true
-      docker volume create ${v}
-      docker run --rm -v ${v}:/data -v "$BACKUP_DIR":/backup alpine sh -c "cd /data && tar xzf /backup/${v}_${RESTORE_DATE}.tar.gz"
+      docker volume rm "$volume" 2>/dev/null || true
+      docker volume create "$volume"
+      docker run --rm -v "$volume:/data" -v "$BACKUP_DIR":/backup alpine sh -c "cd /data && tar xzf /backup/$(basename "$archive")"
     fi
   else
-    echo "No backup for ${v} on date: $RESTORE_DATE"
+    echo "No backup for ${volume} on date: $RESTORE_DATE"
   fi
 done
-
-# Restore Logto data
-if [ -f "$BACKUP_DIR/logto_data_${RESTORE_DATE}.tar.gz" ]; then
-  echo "Restoring logto_data..."
-  if [ "$DRY_RUN" = false ]; then
-    docker volume rm logto_data 2>/dev/null || true
-    docker volume create logto_data
-    docker run --rm -v logto_data:/data -v "$BACKUP_DIR":/backup alpine sh -c "cd /data && tar xzf /backup/logto_data_${RESTORE_DATE}.tar.gz"
-  fi
-fi
-
-# Restore Grafana data
-if [ -f "$BACKUP_DIR/grafana_data_${RESTORE_DATE}.tar.gz" ]; then
-  echo "Restoring grafana_data..."
-  if [ "$DRY_RUN" = false ]; then
-    docker volume rm grafana_data 2>/dev/null || true
-    docker volume create grafana_data
-    docker run --rm -v grafana_data:/data -v "$BACKUP_DIR":/backup alpine sh -c "cd /data && tar xzf /backup/grafana_data_${RESTORE_DATE}.tar.gz"
-  fi
-fi
 
 # Restore logto-db
 if [ -f "$BACKUP_DIR/logto_db_${RESTORE_DATE}.sql.gz" ]; then
