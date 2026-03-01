@@ -23,11 +23,11 @@ Examples:
 Outputs:
   <out-dir>/ca/rootCA.key
   <out-dir>/ca/rootCA.crt
+  <out-dir>/certs/key.pem
+  <out-dir>/certs/cert.pem
   <out-dir>/nginx/<hostname>/privkey.pem
   <out-dir>/nginx/<hostname>/cert.pem
   <out-dir>/nginx/<hostname>/fullchain.pem
-  <out-dir>/traefik/key.pem
-  <out-dir>/traefik/cert.pem
   <out-dir>/client/ca_bundle.crt
 
 Notes:
@@ -62,9 +62,10 @@ found=0
 for s in "${SANS[@]:-}"; do [[ "$s" == "$HOSTNAME" ]] && found=1; done
 [[ "${#SANS[@]}" -eq 0 || "$found" -eq 0 ]] && SANS+=("$HOSTNAME")
 
-mkdir -p "$OUT_DIR"/{ca,nginx,client,tmp}
+mkdir -p "$OUT_DIR"/{ca,certs,nginx,client,tmp}
 NGINX_DIR="$OUT_DIR/nginx/$HOSTNAME"
 mkdir -p "$NGINX_DIR"
+CERTS_DIR="$OUT_DIR/certs"
 
 ROOT_KEY="$OUT_DIR/ca/rootCA.key"
 ROOT_CRT="$OUT_DIR/ca/rootCA.crt"
@@ -92,8 +93,6 @@ LEAF_KEY="$NGINX_DIR/privkey.pem"
 CSR="$OUT_DIR/tmp/$HOSTNAME.csr"
 LEAF_CRT="$NGINX_DIR/cert.pem"
 FULLCHAIN="$NGINX_DIR/fullchain.pem"
-TRAEFIK_DIR="$OUT_DIR/traefik"
-mkdir -p "$TRAEFIK_DIR"
 
 echo "[+] Generating leaf key for $HOSTNAME"
 openssl genrsa -out "$LEAF_KEY" 2048
@@ -168,11 +167,11 @@ chmod 644 "$LEAF_CRT"
 cat "$LEAF_CRT" "$ROOT_CRT" > "$FULLCHAIN"
 chmod 644 "$FULLCHAIN"
 
-# 5) Traefik-friendly output names
-cp "$LEAF_KEY" "$TRAEFIK_DIR/key.pem"
-cp "$FULLCHAIN" "$TRAEFIK_DIR/cert.pem"
-chmod 600 "$TRAEFIK_DIR/key.pem"
-chmod 644 "$TRAEFIK_DIR/cert.pem"
+# 5) Canonical cert/key output
+cp "$LEAF_KEY" "$CERTS_DIR/key.pem"
+cp "$FULLCHAIN" "$CERTS_DIR/cert.pem"
+chmod 600 "$CERTS_DIR/key.pem"
+chmod 644 "$CERTS_DIR/cert.pem"
 
 # 6) Client CA bundle
 cp "$ROOT_CRT" "$CLIENT_BUNDLE"
@@ -186,9 +185,9 @@ echo "Leaf (nginx) for $HOSTNAME:"
 echo "  $LEAF_KEY"
 echo "  $LEAF_CRT"
 echo "  $FULLCHAIN"
-echo "Traefik cert/key:"
-echo "  $TRAEFIK_DIR/key.pem"
-echo "  $TRAEFIK_DIR/cert.pem"
+echo "Canonical cert/key:"
+echo "  $CERTS_DIR/key.pem"
+echo "  $CERTS_DIR/cert.pem"
 echo "Client CA bundle (install on laptop):"
 echo "  $CLIENT_BUNDLE"
 echo

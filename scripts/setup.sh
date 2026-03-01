@@ -113,6 +113,7 @@ refresh_logto_database_urls() {
 setup_tls_certificates() {
   local pki_script="${PROJECT_ROOT}/scripts/pki-build.sh"
   local pki_dir="${PROJECT_ROOT}/pki"
+  local certs_dir="${pki_dir}/certs"
   local ca_name="FoolsM4 Local Root CA"
   local primary_hostname="foolsm4.local"
 
@@ -132,7 +133,7 @@ setup_tls_certificates() {
     "picoclaw.local"
   )
 
-  echo "Generating local TLS certificates for Traefik..."
+  echo "Generating local shared TLS certificates for services..."
   local pki_args=(
     --out-dir "$pki_dir"
     --ca-name "$ca_name"
@@ -144,20 +145,22 @@ setup_tls_certificates() {
 
   "$pki_script" "${pki_args[@]}"
 
-  echo "Installing certificate into Docker volume traefik_certs..."
-  docker volume create traefik_certs >/dev/null
-  docker run --rm \
-    -v traefik_certs:/certs \
-    -v "$pki_dir/traefik:/src:ro" \
-    alpine:3.20 \
-    sh -ec '
-      cp /src/cert.pem /certs/cert.pem
-      cp /src/key.pem /certs/key.pem
-      chmod 644 /certs/cert.pem
-      chmod 600 /certs/key.pem
-    '
+  if [ ! -f "$certs_dir/cert.pem" ] || [ ! -f "$certs_dir/key.pem" ]; then
+    echo "❌ TLS cert/key not found under $certs_dir"
+    echo "❌ Expected cert.pem and key.pem after PKI generation"
+    exit 1
+  fi
 
-  echo "✅ TLS certificate installed for Traefik"
+  echo "Installing shared TLS certificate into Docker volume traefik_certs..."
+  docker volume create traefik_certs >/dev/null
+  local sync_container
+  sync_container="$(docker create -v traefik_certs:/certs alpine:3.20 sh -ec 'chmod 644 /certs/cert.pem && chmod 600 /certs/key.pem')"
+  docker cp "$certs_dir/cert.pem" "${sync_container}:/certs/cert.pem"
+  docker cp "$certs_dir/key.pem" "${sync_container}:/certs/key.pem"
+  docker start "$sync_container" >/dev/null
+  docker rm "$sync_container" >/dev/null
+
+  echo "✅ Shared TLS certificate installed"
   echo "   CA bundle: ${pki_dir}/client/ca_bundle.crt"
 }
 
