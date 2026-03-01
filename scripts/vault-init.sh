@@ -91,6 +91,7 @@ fi
 
 echo ""
 echo "Vault bootstrap complete."
+echo "Next: import environment secrets with ./scripts/vault-import.py"
 echo "Security reminders:"
 echo "- Move $INIT_FILE to secure offline storage and remove local copy if required."
 echo "- Revoke the initial root token after initial configuration."
