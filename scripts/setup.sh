@@ -45,6 +45,71 @@ render_env() {
   done < "$template_file"
 }
 
+is_url_safe_secret() {
+  local value="$1"
+  [[ "$value" =~ ^[A-Za-z0-9._~-]+$ ]]
+}
+
+upsert_env_var() {
+  local file_path="$1"
+  local var_name="$2"
+  local var_value="$3"
+
+  if [ ! -f "$file_path" ]; then
+    return
+  fi
+
+  local tmp_file="${file_path}.tmp"
+  awk -v key="$var_name" -v value="$var_value" '
+    BEGIN { updated=0 }
+    $0 ~ ("^" key "=") {
+      print key "=\"" value "\""
+      updated=1
+      next
+    }
+    { print }
+    END {
+      if (!updated) {
+        print key "=\"" value "\""
+      }
+    }
+  ' "$file_path" > "$tmp_file"
+  mv "$tmp_file" "$file_path"
+}
+
+ensure_url_safe_secret() {
+  local var_name="$1"
+  local hex_bytes="$2"
+  local current_value="${!var_name:-}"
+
+  if [ -z "$current_value" ] || ! is_url_safe_secret "$current_value"; then
+    local new_value
+    new_value="$(openssl rand -hex "$hex_bytes")"
+
+    export "${var_name}=${new_value}"
+    upsert_env_var "${PROJECT_ROOT}/.env" "$var_name" "$new_value"
+    upsert_env_var "${PROJECT_ROOT}/.rendered.env" "$var_name" "$new_value"
+
+    echo "⚠️ ${var_name} was empty or URL-unsafe and has been rotated"
+  fi
+}
+
+refresh_logto_database_urls() {
+  local user="${LOGTO_DB_USER:-logto}"
+  local password="${LOGTO_DB_PASSWORD:-}"
+  local host="${LOGTO_DB_HOST:-logto-db}"
+  local db_name="${LOGTO_DB_NAME:-logto_db}"
+  local db_url="postgres://${user}:${password}@${host}:5432/${db_name}"
+
+  export "LOGTO_DATABASE_URL=${db_url}"
+  export "DB_URL=${db_url}"
+
+  upsert_env_var "${PROJECT_ROOT}/.env" "LOGTO_DATABASE_URL" "$db_url"
+  upsert_env_var "${PROJECT_ROOT}/.env" "DB_URL" "$db_url"
+  upsert_env_var "${PROJECT_ROOT}/.rendered.env" "LOGTO_DATABASE_URL" "$db_url"
+  upsert_env_var "${PROJECT_ROOT}/.rendered.env" "DB_URL" "$db_url"
+}
+
 setup_tls_certificates() {
   local pki_script="${PROJECT_ROOT}/scripts/pki-build.sh"
   local pki_dir="${PROJECT_ROOT}/pki"
@@ -110,6 +175,17 @@ if [ -f scripts/.unrendered.env ]; then
 else
   echo "No scripts/.unrendered.env found; create .env manually with required variables"
 fi
+
+if [ -f ./.rendered.env ]; then
+  # shellcheck disable=SC1091
+  source ./.rendered.env
+elif [ -f ./.env ]; then
+  # shellcheck disable=SC1091
+  source ./.env
+fi
+
+ensure_url_safe_secret "LOGTO_DB_PASSWORD" 24
+refresh_logto_database_urls
 
 # Create minimal data directories for core services
 mkdir -p data/vault
