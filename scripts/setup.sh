@@ -122,6 +122,7 @@ setup_tls_certificates() {
     "auth.local"
     "grafana.local"
     "core.local"
+    "alloy.local"
     "vault.local"
     "open-webui.local"
     "n8n.local"

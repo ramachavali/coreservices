@@ -48,8 +48,9 @@ echo -e "🐘 Cleaning up environment files..."
 safe_remove "./.env" "remove .env file"
 safe_remove "./.rendered.env" "remove .env file"
 
-echo -e "🐘 Cleaning up docker volumes..."
-for volume in traefik_certs traefik_logs vault_data vault_logs logto_data logto_db_data_pg18 grafana_data; do
+remove_docker_volume() {
+    local volume="${1}"
+
     if docker volume inspect "$volume" >/dev/null 2>&1; then
         if docker volume rm "$volume" >/dev/null 2>&1; then
             echo -e "  ✅ Removed volume: $volume"
@@ -59,7 +60,21 @@ for volume in traefik_certs traefik_logs vault_data vault_logs logto_data logto_
     else
         echo -e "  ℹ️  Volume not found: $volume"
     fi
-done
+}
+
+echo -e "🐘 Cleaning up docker volumes..."
+mapfile -t compose_volumes < <(docker-compose config --volumes 2>/dev/null | sed '/^$/d' | sort -u)
+
+if [ "${#compose_volumes[@]}" -gt 0 ]; then
+    for volume in "${compose_volumes[@]}"; do
+        remove_docker_volume "$volume"
+    done
+else
+    echo -e "  ⚠️  Could not resolve compose volumes; using fallback volume list"
+    for volume in traefik_certs traefik_logs vault_data vault_logs logto_data logto_db_data_pg18 grafana_data loki_data; do
+        remove_docker_volume "$volume"
+    done
+fi
 
 echo -e "🐘 Cleaning up docker images..."
 docker image prune -f || true

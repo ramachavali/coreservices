@@ -11,7 +11,7 @@ import sys
 from pathlib import Path
 
 
-SECRET_KEY_PATTERN = re.compile(r"SECRET|PASSWORD|API_KEY")
+SECRET_KEY_PATTERN = re.compile(r"SECRET|PASSWORD|API_KEY|TOKEN")
 
 
 def parse_args(project_root: Path) -> argparse.Namespace:
@@ -207,8 +207,32 @@ def main() -> int:
         ]
         result = run_command(patch_cmd, check=False)
         if result.returncode != 0:
+            stderr = result.stderr.strip()
+            if "Code: 404" in stderr:
+                put_cmd = [
+                    "docker",
+                    "exec",
+                    "-e",
+                    f"VAULT_ADDR={venv['VAULT_ADDR']}",
+                    "-e",
+                    f"VAULT_TOKEN={venv['VAULT_TOKEN']}",
+                    args.container,
+                    "vault",
+                    "kv",
+                    "put",
+                    f"-mount={args.mount}",
+                    args.path,
+                    f"{key}={value}",
+                ]
+                put_result = run_command(put_cmd, check=False)
+                if put_result.returncode == 0:
+                    continue
+                print(f"❌ Failed importing key: {key}", file=sys.stderr)
+                print(put_result.stderr.strip(), file=sys.stderr)
+                return 1
+
             print(f"❌ Failed importing key: {key}", file=sys.stderr)
-            print(result.stderr.strip(), file=sys.stderr)
+            print(stderr, file=sys.stderr)
             return 1
 
     print("✅ Vault import complete")
