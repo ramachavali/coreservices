@@ -163,6 +163,12 @@ openssl x509 -req \
 
 chmod 644 "$LEAF_CRT"
 
+echo "PGP key fingerprint of the Root CA:"
+PGP_ROOT_CRT="$OUT_DIR/ca/rootCA.pgp"
+openssl x509 -in "$ROOT_CRT" -out "$PGP_ROOT_CRT" -fingerprint -sha256
+
+chmod 644 "$PGP_ROOT_CRT"
+
 # 4) Create fullchain.pem (leaf + root)
 cat "$LEAF_CRT" "$ROOT_CRT" > "$FULLCHAIN"
 chmod 644 "$FULLCHAIN"
