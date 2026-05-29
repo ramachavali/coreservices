@@ -94,22 +94,6 @@ ensure_url_safe_secret() {
   fi
 }
 
-refresh_logto_database_urls() {
-  local user="${LOGTO_DB_USER:-logto}"
-  local password="${LOGTO_DB_PASSWORD:-}"
-  local host="${LOGTO_DB_HOST:-logto-db}"
-  local db_name="${LOGTO_DB_NAME:-logto_db}"
-  local db_url="postgres://${user}:${password}@${host}:5432/${db_name}"
-
-  export "LOGTO_DATABASE_URL=${db_url}"
-  export "DB_URL=${db_url}"
-
-  upsert_env_var "${PROJECT_ROOT}/.env" "LOGTO_DATABASE_URL" "$db_url"
-  upsert_env_var "${PROJECT_ROOT}/.env" "DB_URL" "$db_url"
-  upsert_env_var "${PROJECT_ROOT}/.rendered.env" "LOGTO_DATABASE_URL" "$db_url"
-  upsert_env_var "${PROJECT_ROOT}/.rendered.env" "DB_URL" "$db_url"
-}
-
 setup_tls_certificates() {
   local pki_script="${PROJECT_ROOT}/scripts/pki-build.sh"
   local pki_dir="${PROJECT_ROOT}/pki"
@@ -119,7 +103,6 @@ setup_tls_certificates() {
 
   local sans=(
     "traefik.local"
-    "auth.local"
     "grafana.local"
     "core.local"
     "alloy.local"
@@ -132,6 +115,8 @@ setup_tls_certificates() {
     "searxng.local"
     "portal.local"
     "picoclaw.local"
+    "auth.local"
+    "keycloak.local"
   )
 
   echo "Generating local shared TLS certificates for services..."
@@ -188,14 +173,11 @@ elif [ -f ./.env ]; then
   source ./.env
 fi
 
-ensure_url_safe_secret "LOGTO_DB_PASSWORD" 24
-refresh_logto_database_urls
-
 # Create minimal data directories for core services
 mkdir -p data/vault
 mkdir -p data/traefik
-mkdir -p data/logto
 mkdir -p data/grafana
+mkdir -p data/keycloak
 
 chmod 700 data/vault || true
 

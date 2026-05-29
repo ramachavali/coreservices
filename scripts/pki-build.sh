@@ -183,8 +183,7 @@ chmod 644 "$CERTS_DIR/cert.pem"
 cp "$ROOT_CRT" "$CLIENT_BUNDLE"
 chmod 644 "$CLIENT_BUNDLE"
 
-echo
-echo "✅ Done."
+echo -e "\n✅ Done."
 echo "Root CA:"
 echo "  $ROOT_CRT"
 echo "Leaf (nginx) for $HOSTNAME:"
@@ -196,6 +195,5 @@ echo "  $CERTS_DIR/key.pem"
 echo "  $CERTS_DIR/cert.pem"
 echo "Client CA bundle (install on laptop):"
 echo "  $CLIENT_BUNDLE"
-echo
-echo "SANs:"
+echo -e "\nSANs:"
 openssl x509 -in "$LEAF_CRT" -noout -text | awk '/Subject Alternative Name/{getline; print "  " $0}'

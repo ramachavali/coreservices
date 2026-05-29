@@ -37,13 +37,7 @@ services:
     ports:
       - "80:80"
       - "443:443"
-      - "3001:3001"
-      - "3002:3002"
-      - "5432:5432"
-      - "5678:5678"
-      - "8090:8080"  # Dashboard
-      - "8200:8200"
-      - "11434:11434"
+      - "8081:8080"  # Dashboard
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - ../ai-stack-homelab/configs/traefik/traefik.yml:/etc/traefik/traefik.yml:ro
@@ -65,7 +59,6 @@ services:
       retries: 3
       start_period: 10s
 
-
   vault:
     image: hashicorp/vault:latest
     container_name: vault
@@ -75,6 +68,8 @@ services:
     security_opt:
       - no-new-privileges:true
     user: root
+    ports:
+      - "8083:8200"
     environment:
       VAULT_ADDR: http://0.0.0.0:8200
     volumes:
@@ -104,75 +99,14 @@ services:
       retries: 5
       start_period: 10s
 
-  logto:
-    image: svhd/logto:${TAG-latest}
-    container_name: logto
-    restart: unless-stopped
-    depends_on:
-      logto-db:
-        condition: service_healthy
-    security_opt:
-      - no-new-privileges:true
-    environment:
-      DB_URL: postgres://${LOGTO_DB_USER:-logto}:${LOGTO_DB_PASSWORD:-logto_pass}@${LOGTO_DB_HOST:-logto-db}:5432/${LOGTO_DB_NAME:-logto_db}
-      LOGTO_DATABASE_URL: postgres://${LOGTO_DB_USER:-logto}:${LOGTO_DB_PASSWORD:-logto_pass}@${LOGTO_DB_HOST:-logto-db}:5432/${LOGTO_DB_NAME:-logto_db}
-      LOGTO_APP_ID: ${LOGTO_APP_ID:-logto}
-      LOGTO_APP_SECRET: ${LOGTO_APP_SECRET:-change-me}
-      LOGTO_HOST: 0.0.0.0
-      LOGTO_PORT: ${LOGTO_PORT:-3001}
-      ADMIN_PORT: ${LOGTO_ADMIN_PORT:-3002}
-      ENDPOINT: ${LOGTO_ENDPOINT:-https://auth.local}
-      ADMIN_ENDPOINT: ${LOGTO_ADMIN_ENDPOINT:-https://auth.local:3002}
-      TRUST_PROXY_HEADER: ${LOGTO_TRUST_PROXY_HEADER:-true}
-    volumes:
-      - logto_data:/var/lib/logto
-    networks:
-      - core-network
-    labels:
-      - "traefik.enable=true"
-      - "traefik.docker.network=core-network"
-      - "traefik.http.routers.logto.rule=Host(`auth.local`)"
-      - "traefik.http.routers.logto.entrypoints=websecure"
-      - "traefik.http.routers.logto.tls=true"
-      - "traefik.http.routers.logto.service=logto"
-      - "traefik.http.services.logto.loadbalancer.server.port=3001"
-      - "traefik.http.routers.logto-admin.rule=Host(`auth.local`)"
-      - "traefik.http.routers.logto-admin.entrypoints=websecure-admin"
-      - "traefik.http.routers.logto-admin.tls=true"
-      - "traefik.http.routers.logto-admin.service=logto-admin"
-      - "traefik.http.services.logto-admin.loadbalancer.server.port=3002"
-    healthcheck:
-      test: ["CMD-SHELL", "wget -q --spider http://127.0.0.1:3001/status || exit 1"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 20s
-
-  logto-db:
-    image: postgres:18
-    container_name: logto-db
-    restart: unless-stopped
-    environment:
-      POSTGRES_USER: ${LOGTO_DB_USER:-logto}
-      POSTGRES_PASSWORD: ${LOGTO_DB_PASSWORD:-logto_pass}
-      POSTGRES_DB: ${LOGTO_DB_NAME:-logto_db}
-    volumes:
-      - logto_db_data_pg18:/var/lib/postgresql
-    networks:
-      - core-network
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${LOGTO_DB_USER:-logto} -d ${LOGTO_DB_NAME:-logto_db} || exit 1"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 10s
-
   grafana:
     image: grafana/grafana:latest
     container_name: grafana
     restart: unless-stopped
     security_opt:
       - no-new-privileges:true
+    ports:
+      - "8100:3000"
     environment:
       GF_SERVER_ROOT_URL: ${GRAFANA_ROOT_URL:-https://grafana.local}
       GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
@@ -222,6 +156,8 @@ services:
     image: grafana/alloy:latest
     container_name: alloy
     restart: unless-stopped
+    ports:
+      - "8101:12345"
     volumes:
       - ./configs/alloy/config.alloy:/etc/alloy/config.alloy:ro
       - /var/run/docker.sock:/var/run/docker.sock:ro
@@ -252,15 +188,14 @@ services:
     build: ./services/core-frontend
     container_name: core-frontend
     restart: unless-stopped
+    ports:
+      - "8084:5000"
     depends_on:
       vault:
-        condition: service_started
-      logto:
         condition: service_started
     environment:
       PORTAL_TITLE: ${PORTAL_TITLE:-Core Services Portal}
       VAULT_UI_URL: ${VAULT_UI_URL:-https://vault.local}
-      LOGTO_UI_URL: ${LOGTO_UI_URL:-https://auth.local}
       TRAEFIK_UI_URL: ${TRAEFIK_UI_URL:-https://traefik.local}
       GRAFANA_UI_URL: ${GRAFANA_UI_URL:-https://grafana.local}
     networks:
@@ -287,6 +222,10 @@ networks:
     name: core-network
 
 volumes:
+  auth_postgres_data:
+    name: auth_postgres_data
+  keycloak_data:
+    name: keycloak_data
   traefik_certs:
     name: traefik_certs
   traefik_logs:
@@ -295,10 +234,6 @@ volumes:
     name: vault_data
   vault_logs:
     name: vault_logs
-  logto_data:
-    name: logto_data
-  logto_db_data_pg18:
-    name: logto_db_data_pg18
   grafana_data:
     name: grafana_data
   loki_data:

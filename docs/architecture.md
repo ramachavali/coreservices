@@ -1,6 +1,6 @@
 # Core Services Architecture
 
-This document describes the core-services cluster (Traefik, Vault, Logto + logto-db, Grafana) and how it operates standalone and integrates with application stacks (for example `ai-stack-homelab`).
+This document describes the core-services cluster (Traefik, Vault, Grafana) and how it operates standalone and integrates with application stacks (for example `ai-stack-homelab`).
 
 ## Overview
 
@@ -10,8 +10,6 @@ Primary components:
 
 - Traefik: Edge reverse proxy and router. Terminates TLS, exposes dashboard, routes requests to internal services by Docker network attachment and labels.
 - Vault: Secrets manager for credentials, TLS keys, and dynamic secrets. Runs with a file backend by default (see `configs/vault/config.hcl`) — not recommended for production without TLS and auto-unseal.
-- Logto: Authentication and identity provider. Requires a persistent database (`logto-db`).
-- logto-db: Postgres backing Logto's data.
 - Grafana: Metrics and dashboard UI for operational visibility.
 
 All core services are attached to a Docker network named `core-network` which is meant to be created and owned by the core services docker-compose. Application stacks that need routing/auth should join the `core-network` (declared external in their compose) so Traefik and other core services can reach them.
@@ -35,8 +33,6 @@ vault operator init -key-shares=1 -key-threshold=1 > vault-init.txt
 vault operator unseal $(awk '/^Unseal Key 1:/ {print $4}' vault-init.txt)
 ```
 
-4. Logto uses `logto-db` for persistence and is exposed via Traefik using host rules (see compose labels). Configure `LOGTO_DATABASE_URL` if you prefer an external DB.
-
 ## Integration with Application Stacks
 
 - Application stacks (for example `ai-stack-homelab`) should declare the `core-network` as an external network in their `docker-compose.yml` and attach services that need routing or authentication to that network.
@@ -59,7 +55,7 @@ services:
 
 - With the above, Traefik (running in the core cluster) will discover `my-app` and route requests for `my-app.local` to it.
 
-- For authentication, configure your app to use Logto's OIDC endpoints exposed by the `logto` service (e.g., `https://auth.local`). Vault may be used to store app secrets and TLS keys centrally.
+- Vault may be used to store app secrets and TLS keys centrally.
 
 ## Security and Production Notes
 
@@ -73,11 +69,9 @@ Core services maintain important volumes:
 - `vault_data` — Vault storage
 - `traefik_certs` — TLS certificates
 - `traefik_logs` — Traefik logs
-- `logto_data` — Logto application data
-- `logto_db_data` — Postgres data for Logto
 - `grafana_data` — Grafana dashboards, users, and settings
 
-Use `./scripts/backup.sh` and `./scripts/restore.sh` to manage backups for these volumes and the Logto database dump.
+Use `./scripts/backup.sh` and `./scripts/restore.sh` to manage backups for these volumes.
 
 ## Operational Tips
 

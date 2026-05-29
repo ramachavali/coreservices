@@ -11,10 +11,8 @@ coreservices-homelab/
 │   └── project-structure.md
 ├── configs/
 │   ├── traefik/            # (referenced from ai-stack config path currently)
-│   ├── vault/
-│   │   └── config.hcl
-│   └── logto/
-│       └── README.md
+│   └── vault/
+│       └── config.hcl
 └── scripts/
     ├── .unrendered.env
     ├── setup.sh
@@ -27,12 +25,12 @@ coreservices-homelab/
 
 ## Responsibilities
 
-- `docker-compose.yml`: defines Traefik, Vault, Logto, `logto-db`, Grafana, and core frontend.
-- `scripts/.unrendered.env`: template with generated secrets for Logto and DB.
+- `docker-compose.yml`: defines Traefik, Vault, Grafana, and core frontend.
+- `scripts/.unrendered.env`: template with generated secrets.
 - `scripts/setup.sh`: renders `.env`/`.rendered.env` and prepares local dirs.
-- `scripts/start.sh`: validates env, starts services, verifies `logto-db` readiness.
+- `scripts/start.sh`: validates env and starts services.
 - `scripts/stop.sh`: graceful shutdown and optional volume removal.
-- `scripts/backup.sh`: backups for `vault_data`, `traefik_*`, `logto_data`, and DB dump.
+- `scripts/backup.sh`: backups for `vault_data` and `traefik_*`.
 - `scripts/restore.sh`: restore path with optional dry-run.
 
 ## Network Contract
@@ -45,6 +43,4 @@ coreservices-homelab/
 - `traefik_certs`
 - `traefik_logs`
 - `vault_data`
-- `logto_data`
-- `logto_db_data_pg18`
 - `grafana_data`

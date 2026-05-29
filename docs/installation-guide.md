@@ -5,9 +5,7 @@
 This guide installs only the core stack in `coreservices-homelab`:
 - Traefik (edge routing)
 - Vault (secrets)
-- Logto (auth)
 - Grafana (monitoring dashboards)
-- logto-db (Postgres for Logto)
 
 ## Prerequisites
 
@@ -30,7 +28,7 @@ docker-compose config
 
 ```bash
 docker-compose ps
-docker-compose logs --tail=100 traefik logto vault logto-db
+docker-compose logs --tail=100 traefik vault
 ```
 
 ## Vault First-Time Init

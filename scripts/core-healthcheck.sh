@@ -48,8 +48,6 @@ run_endpoint_check() {
 }
 
 run_core_stack_health() {
-  echo ""
-  echo "===== CORE CONTAINER HEALTH ====="
   cd "$CORE_ROOT"
 
   local service cid status health
@@ -73,7 +71,6 @@ run_core_stack_health() {
   done < <(docker-compose config --services)
 }
 
-echo "===== CORE HTTPS/TLS ENDPOINT CHECKS ====="
 run_endpoint_check "traefik.local" "/" "200,302,404"
 run_endpoint_check "vault.local" "/v1/sys/health" "200"
 run_endpoint_check "auth.local" "/status" "200"
@@ -83,10 +80,9 @@ run_endpoint_check "alloy.local" "/" "200"
 
 run_core_stack_health
 
-echo ""
 if [ "$failures" -gt 0 ]; then
-  echo "❌ Core healthcheck completed with ${failures} failure(s)."
+  echo -e "\n❌ Core healthcheck completed with ${failures} failure(s)."
   exit 1
 fi
 
-echo "✅ Core healthcheck passed with zero failures."
+echo -e "\n✅ Core healthcheck passed with zero failures."

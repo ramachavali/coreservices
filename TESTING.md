@@ -3,9 +3,7 @@
 This document validates the `coreservices-homelab` stack only:
 - `traefik`
 - `vault`
-- `logto`
 - `grafana`
-- `logto-db`
 
 ## 1) Preflight
 
@@ -24,15 +22,9 @@ Expected: clean rendered config output.
 docker-compose ps
 ```
 
-Expected: all five services are `Up` (or `healthy` when healthchecks pass).
+Expected: all services are `Up` (or `healthy` when healthchecks pass).
 
 ## 3) Service Checks
-
-### `logto-db`
-
-```bash
-docker exec logto-db pg_isready -U "${LOGTO_DB_USER:-logto}" -d "${LOGTO_DB_NAME:-logto_db}"
-```
 
 ### `vault`
 
@@ -41,13 +33,6 @@ curl -fsS http://127.0.0.1:8200/v1/sys/health
 ```
 
 Note: Vault may report sealed before initialization/unseal.
-
-### `logto`
-
-```bash
-docker-compose logs --tail=100 logto
-curl -fsS http://127.0.0.1:3000/ || true
-```
 
 ### `traefik`
 

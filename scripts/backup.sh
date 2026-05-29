@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-# Backup core services: vault, traefik certs/logs, logto DB and data
+# Backup core services: vault, traefik certs/logs
 
 set -o errexit
 set -o nounset
@@ -24,16 +24,6 @@ if [ -f ./.rendered.env ]; then
   source ./.rendered.env
 fi
 
-LOGTO_DB_USER="${LOGTO_DB_USER:-logto}"
-LOGTO_DB_PASSWORD="${LOGTO_DB_PASSWORD:-}"
-LOGTO_DB_NAME="${LOGTO_DB_NAME:-logto_db}"
-
-if [ -z "$LOGTO_DB_PASSWORD" ]; then
-  echo "❌ LOGTO_DB_PASSWORD is not set."
-  echo "Run ./scripts/setup.sh to render secrets, or set LOGTO_DB_PASSWORD in .rendered.env/.env"
-  exit 1
-fi
-
 BACKUP_DIR="${BACKUP_LOCATION:-$HOME/coreservices-backups}"
 DATE=$(date +%Y%m%d_%H%M%S)
 COMPRESS=true
@@ -42,7 +32,6 @@ mkdir -p "$BACKUP_DIR"
 
 echo "💾 Core services backup -> $BACKUP_DIR"
 
-# 1) Backup all named Docker volumes from compose
 echo "  - Backing up named volumes from compose..."
 volumes=()
 while IFS= read -r v; do
@@ -57,14 +46,6 @@ for volume in "${volumes[@]}"; do
     echo "      ⚠️ Volume $volume not found"
   fi
 done
-
-# 4) Dump logto-db (Postgres)
-echo "  - Dumping logto-db (Postgres)..."
-if "${COMPOSE_CMD[@]}" ps --services --filter "status=running" | grep -q "^logto-db$"; then
-  docker exec logto-db pg_dump -U "$LOGTO_DB_USER" "$LOGTO_DB_NAME" | gzip > "$BACKUP_DIR/logto_db_${DATE}.sql.gz" || true
-else
-  echo "    ⚠️ logto-db not running; skipping DB dump"
-fi
 
 echo "Backup complete. Files in: $BACKUP_DIR"
 ls -lh "$BACKUP_DIR" | sed -n '1,100p'

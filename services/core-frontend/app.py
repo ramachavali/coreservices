@@ -14,11 +14,6 @@ def home():
             "description": "Secrets management and policy administration",
         },
         {
-            "name": "Logto UI",
-            "url": os.getenv("LOGTO_UI_URL", "https://auth.local"),
-            "description": "Authentication and identity management",
-        },
-        {
             "name": "Traefik Dashboard",
             "url": os.getenv("TRAEFIK_UI_URL", "https://traefik.local"),
             "description": "Routing and reverse-proxy status",

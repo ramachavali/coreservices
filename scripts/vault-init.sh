@@ -1,7 +1,5 @@
 #!/usr/bin/env bash
 
-# vault-init.sh - Initialize/unseal Vault and enable baseline audit logging
-
 set -o errexit
 set -o nounset
 
@@ -89,8 +87,7 @@ else
   echo "✅ Audit logging enabled"
 fi
 
-echo ""
-echo "Vault bootstrap complete."
+echo -e "\nVault bootstrap complete."
 echo "Next: import environment secrets with ./scripts/vault-import.py"
 echo "Security reminders:"
 echo "- Move $INIT_FILE to secure offline storage and remove local copy if required."

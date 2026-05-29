@@ -1,7 +1,5 @@
 #!/usr/bin/env bash
 
-# Restore core services backups (vault, traefik certs/logs, logto data and DB)
-
 set -o errexit
 set -o nounset
 set -o pipefail
@@ -38,16 +36,6 @@ if [ -f ./.rendered.env ]; then
   source ./.rendered.env
 fi
 
-LOGTO_DB_USER="${LOGTO_DB_USER:-logto}"
-LOGTO_DB_PASSWORD="${LOGTO_DB_PASSWORD:-}"
-LOGTO_DB_NAME="${LOGTO_DB_NAME:-logto_db}"
-
-if [ -z "$LOGTO_DB_PASSWORD" ]; then
-  echo "❌ LOGTO_DB_PASSWORD is not set."
-  echo "Run ./scripts/setup.sh to render secrets, or set LOGTO_DB_PASSWORD in .rendered.env/.env"
-  exit 1
-fi
-
 BACKUP_DIR="${BACKUP_LOCATION:-$HOME/coreservices-backups}"
 RESTORE_DATE=""
 DRY_RUN=false
@@ -77,7 +65,6 @@ if [ "$DRY_RUN" = true ]; then
   echo "DRY RUN: no changes will be made"
 fi
 
-# Restore all named compose volumes
 echo "Restoring named volumes from compose..."
 volumes=()
 while IFS= read -r v; do
@@ -97,19 +84,5 @@ for volume in "${volumes[@]}"; do
     echo "No backup for ${volume} on date: $RESTORE_DATE"
   fi
 done
-
-# Restore logto-db
-if [ -f "$BACKUP_DIR/logto_db_${RESTORE_DATE}.sql.gz" ]; then
-  echo "Restoring logto-db..."
-  if [ "$DRY_RUN" = false ]; then
-    if compose_service_exists "logto-db"; then
-      "${COMPOSE_CMD[@]}" up -d logto-db
-    else
-      echo "❌ Service 'logto-db' not found in compose configuration"
-      exit 1
-    fi
-    gunzip -c "$BACKUP_DIR/logto_db_${RESTORE_DATE}.sql.gz" | docker exec -i logto-db psql -U "$LOGTO_DB_USER" -d "$LOGTO_DB_NAME"
-  fi
-fi
 
 echo "Restore complete. Start core services with: ./scripts/start.sh"

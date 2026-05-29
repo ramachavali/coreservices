@@ -6,7 +6,6 @@ Shared infrastructure stack for local routing, auth, and secrets.
 
 - Traefik (TLS + reverse proxy)
 - Vault
-- Logto + `logto-db`
 - Grafana
 - Core frontend (`core.local`)
 
@@ -65,4 +64,3 @@ docker-compose ps
 
 - `setup.sh` also generates and installs local TLS certs into `traefik_certs`.
 - Vault still requires init/unseal before use.
-- Logto DB schema/alterations are handled by `scripts/start.sh`.
