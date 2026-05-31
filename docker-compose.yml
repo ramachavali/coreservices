@@ -185,7 +185,7 @@ services:
       start_period: 15s
 
   core-frontend:
-    build: ./services/core-frontend
+    image: registry.local/core-frontend:latest
     container_name: core-frontend
     restart: unless-stopped
     ports:
