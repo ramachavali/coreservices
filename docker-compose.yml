@@ -182,7 +182,7 @@ services:
       start_period: 15s
 
   core-frontend:
-    image: registry.local/core-frontend:latest
+    image: ghcr.io/ramachavali/core-frontend:latest
     container_name: core-frontend
     restart: unless-stopped
     ports:

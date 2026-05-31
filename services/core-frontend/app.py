@@ -1,4 +1,5 @@
 import os
+import re
 import threading
 import time
 
@@ -51,6 +52,8 @@ def _poll():
             results = []
             for svc in services_raw:
                 name = svc["name"]
+                if "@internal" in name:   # skip Traefik built-ins
+                    continue
                 display = name.replace("@docker", "").replace("@internal", "")
                 backend = svc_backends.get(name)
                 health, code = _probe(backend) if backend else ("internal", None)
