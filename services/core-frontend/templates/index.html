@@ -7,21 +7,39 @@
     <style>
       :root { color-scheme: light dark; }
       body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; margin: 0; background: #0f172a; color: #e2e8f0; }
-      .container { max-width: 760px; margin: 48px auto; padding: 0 20px; }
+      .container { max-width: 860px; margin: 48px auto; padding: 0 20px; }
       h1 { margin-bottom: 8px; }
+      h2 { margin-top: 48px; margin-bottom: 4px; font-size: 20px; }
       p.sub { margin-top: 0; color: #94a3b8; }
       .grid { display: grid; gap: 14px; margin-top: 24px; }
       .card { background: #111827; border: 1px solid #1f2937; border-radius: 10px; padding: 16px; }
-      .name { font-size: 18px; font-weight: 600; margin-bottom: 6px; }
+      .name { font-size: 18px; font-weight: 600; margin-bottom: 6px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
       .desc { color: #94a3b8; margin-bottom: 12px; }
       a.btn { display: inline-block; text-decoration: none; color: #e2e8f0; background: #1d4ed8; border-radius: 8px; padding: 8px 12px; }
       a.btn:hover { background: #2563eb; }
+
+      .badge { font-size: 12px; font-weight: 500; padding: 2px 8px; border-radius: 999px; text-transform: uppercase; letter-spacing: 0.04em; }
+      .badge-up       { background: #14532d; color: #86efac; }
+      .badge-down     { background: #7f1d1d; color: #fca5a5; }
+      .badge-unknown  { background: #78350f; color: #fcd34d; }
+      .badge-internal { background: #1e293b; color: #94a3b8; }
+
+      .rule { font-size: 12px; color: #64748b; font-family: "SFMono-Regular", Consolas, monospace; margin-top: 4px; }
+      .http-code { font-size: 12px; color: #475569; }
+
+      .refresh-row { display: flex; align-items: center; gap: 12px; margin-top: 6px; color: #64748b; font-size: 13px; }
+      button.refresh-btn {
+        background: #1e293b; border: 1px solid #334155; color: #e2e8f0;
+        border-radius: 6px; padding: 4px 12px; cursor: pointer; font-size: 13px;
+      }
+      button.refresh-btn:hover { background: #334155; }
     </style>
   </head>
   <body>
     <main class="container">
       <h1>{{ title }}</h1>
       <p class="sub">Simple frontend for quick access to core services.</p>
+
       <section class="grid">
         {% for link in links %}
           <article class="card">
@@ -31,6 +49,59 @@
           </article>
         {% endfor %}
       </section>
+
+      <h2>Status</h2>
+      <div class="refresh-row">
+        <span id="status-updated"></span>
+        <button class="refresh-btn" onclick="fetchStatus()">Refresh</button>
+      </div>
+      <div id="status-grid" class="grid">
+        <p style="color:#64748b">Loading&hellip;</p>
+      </div>
     </main>
+
+    <script>
+      function esc(str) {
+        return String(str ?? '')
+          .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+      }
+
+      async function fetchStatus() {
+        const grid = document.getElementById('status-grid');
+        const updated = document.getElementById('status-updated');
+        try {
+          const res = await fetch('/api/status');
+          const data = await res.json();
+          if (data.error) {
+            grid.innerHTML = `<p style="color:#fca5a5">Traefik API error: ${esc(data.error)}</p>`;
+            return;
+          }
+          if (!data.services.length) {
+            grid.innerHTML = `<p style="color:#64748b">No services discovered yet&hellip;</p>`;
+            return;
+          }
+          grid.innerHTML = data.services.map(s => {
+            const code = s.http_status != null ? `<span class="http-code">HTTP ${esc(s.http_status)}</span>` : '';
+            const rule = s.rule ? `<div class="rule">${esc(s.rule)}</div>` : '';
+            return `<article class="card">
+              <div class="name">
+                ${esc(s.name)}
+                <span class="badge badge-${esc(s.health)}">${esc(s.health)}</span>
+                ${code}
+              </div>
+              ${rule}
+            </article>`;
+          }).join('');
+          if (data.updated_at) {
+            updated.textContent = 'Updated ' + new Date(data.updated_at * 1000).toLocaleTimeString();
+          }
+        } catch (e) {
+          grid.innerHTML = `<p style="color:#fca5a5">Failed to reach /api/status: ${esc(e)}</p>`;
+        }
+      }
+
+      fetchStatus();
+      setInterval(fetchStatus, 30000);
+    </script>
   </body>
-  </html>
+</html>

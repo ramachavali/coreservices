@@ -198,6 +198,8 @@ services:
       VAULT_UI_URL: ${VAULT_UI_URL:-https://vault.local}
       TRAEFIK_UI_URL: ${TRAEFIK_UI_URL:-https://traefik.local}
       GRAFANA_UI_URL: ${GRAFANA_UI_URL:-https://grafana.local}
+      ALLOY_UI_URL: ${ALLOY_UI_URL:-https://alloy.local}
+      TRAEFIK_API_URL: http://traefik:8080/api
     networks:
       - core-network
     labels:
