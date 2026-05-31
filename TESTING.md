@@ -73,7 +73,7 @@ docker-compose ps
 
 Expected: stack is stopped/down.
 
-## 6) Integration Spot Check with AI Stack
+## 6) Integration Spot Check
 
 After core services are started, verify the shared network exists:
 
@@ -81,4 +81,4 @@ After core services are started, verify the shared network exists:
 docker network inspect core-network >/dev/null && echo "core-network exists"
 ```
 
-Then start `ai-stack-homelab`; routed services attached to `core-network` should be reachable through core Traefik.
+External application stacks can attach to `core-network` and their services should be reachable through core Traefik.

@@ -10,7 +10,7 @@ coreservices-homelab/
 │   ├── installation-guide.md
 │   └── project-structure.md
 ├── configs/
-│   ├── traefik/            # (referenced from ai-stack config path currently)
+│   ├── traefik/
 │   └── vault/
 │       └── config.hcl
 └── scripts/
@@ -36,7 +36,7 @@ coreservices-homelab/
 ## Network Contract
 
 - Core stack owns Docker network `core-network`.
-- External stacks (e.g., `ai-stack-homelab`) attach routed services to external `core-network`.
+- External application stacks attach routed services to external `core-network`.
 
 ## Volumes
 

@@ -9,20 +9,13 @@ Shared infrastructure stack for local routing, auth, and secrets.
 - Grafana
 - Core frontend (`core.local`)
 
-This stack owns Docker network `core-network`, which `ai-stack-homelab` attaches to.
+This stack owns Docker network `core-network`. Other stacks attach to it to use shared routing and TLS.
 
 ## Quick Start
 
 ```bash
 cd /Users/rama/work/coreservices-homelab
 ./scripts/setup.sh
-./scripts/start.sh
-```
-
-Then start the app stack:
-
-```bash
-cd /Users/rama/work/ai-stack-homelab
 ./scripts/start.sh
 ```
 
@@ -57,8 +50,8 @@ docker-compose ps
 - `docker-compose.yml`
 - `scripts/.unrendered.env`
 - `configs/vault/config.hcl`
-- `../ai-stack-homelab/configs/traefik/traefik.yml`
-- `../ai-stack-homelab/configs/traefik/dynamic.yml`
+- `configs/traefik/traefik.yml`
+- `configs/traefik/dynamic.yml`
 
 ## Notes
 

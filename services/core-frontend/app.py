@@ -35,7 +35,7 @@ def _poll():
             svc_backends = {}
             for svc in services_raw:
                 name = svc["name"]
-                if "@internal" in name:   # skip Traefik built-ins
+                if "@internal" in name or "traefik-coreservices-homelab" in name:   # skip Traefik built-ins
                     continue
                 servers = svc.get("loadBalancer", {}).get("servers", [])
                 if servers:
@@ -52,16 +52,22 @@ def _poll():
             results = []
             for svc in services_raw:
                 name = svc["name"]
-                if "@internal" in name:   # skip Traefik built-ins
+                if "@internal" in name or "traefik-coreservices-homelab" in name:   # skip Traefik built-ins
                     continue
                 display = name.replace("@docker", "").replace("@internal", "")
                 backend = svc_backends.get(name)
                 health, code = _probe(backend) if backend else ("internal", None)
+                rule = svc_rule.get(name, "")
+                url = None
+                m = re.search(r"Host\(`([^`]+)`\)", rule)
+                if m:
+                    url = f"https://{m.group(1)}"
                 results.append({
                     "name": display,
-                    "rule": svc_rule.get(name, ""),
+                    "rule": rule,
                     "health": health,
                     "http_status": code,
+                    "url": url,
                 })
 
             results.sort(key=lambda x: x["name"])
@@ -80,28 +86,8 @@ threading.Thread(target=_poll, daemon=True).start()
 
 @app.get("/")
 def home():
-    links = [
-        {
-            "name": "Vault UI",
-            "url": os.getenv("VAULT_UI_URL", "https://vault.local"),
-            "description": "Secrets management and policy administration",
-        },
-        {
-            "name": "Traefik Dashboard",
-            "url": os.getenv("TRAEFIK_UI_URL", "https://traefik.local"),
-            "description": "Routing and reverse-proxy status",
-        },
-        {
-            "name": "Grafana",
-            "url": os.getenv("GRAFANA_UI_URL", "https://grafana.local"),
-            "description": "Metrics visualization and operational dashboards",
-        },
-        {
-            "name": "Alloy",
-            "url": os.getenv("ALLOY_UI_URL", "https://alloy.local"),
-            "description": "Grafana Alloy telemetry pipeline and agent UI",
-        },
-    ]
+    with _lock:
+        links = [s for s in _cache["services"] if s.get("url")]
     return render_template(
         "index.html",
         title=os.getenv("PORTAL_TITLE", "Core Services Portal"),

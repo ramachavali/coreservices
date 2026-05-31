@@ -6,7 +6,6 @@ This guide provides step-by-step instructions for deploying Keycloak authenticat
 
 - Docker and Docker Compose installed
 - `coreservices-homelab` stack running (Traefik, Vault, Grafana)
-- `ai-stack-homelab` services configured
 - `/etc/hosts` configured with `auth.local` pointing to your server
 
 ## Deployment Steps
@@ -203,75 +202,7 @@ exit
    - Click "Sign in with OIDC Provider"
    - Login with Keycloak credentials
 
-### Step 8: Update Service Configurations (AI Stack)
-
-Now update the AI stack services to use Keycloak authentication.
-
-#### 8.1 Update Open WebUI
-
-Edit `ai-stack-homelab/docker-compose.yml`:
-
-```yaml
-open-webui:
-  environment:
-    # Add these OIDC settings:
-    ENABLE_OAUTH_SIGNUP: true
-    OAUTH_PROVIDER: oidc
-    OAUTH_CLIENT_ID: openwebui
-    OAUTH_CLIENT_SECRET: ${KEYCLOAK_OPENWEBUI_CLIENT_SECRET}
-    OAUTH_ISSUER: https://auth.local/realms/homelab
-    OAUTH_AUTHORIZATION_URL: https://auth.local/realms/homelab/protocol/openid-connect/auth
-    OAUTH_TOKEN_URL: https://auth.local/realms/homelab/protocol/openid-connect/token
-    OAUTH_USERINFO_URL: https://auth.local/realms/homelab/protocol/openid-connect/userinfo
-    OAUTH_SCOPES: openid profile email
-```
-
-#### 8.2 Update n8n
-
-```yaml
-n8n:
-  environment:
-    # Add these SSO settings:
-    N8N_SSO_OIDC_ENABLED: true
-    N8N_SSO_OIDC_ISSUER: https://auth.local/realms/homelab
-    N8N_SSO_OIDC_CLIENT_ID: n8n
-    N8N_SSO_OIDC_CLIENT_SECRET: ${KEYCLOAK_N8N_CLIENT_SECRET}
-    N8N_SSO_OIDC_REDIRECT_URL: https://n8n.local/rest/oauth2-credential/callback
-    N8N_SSO_OIDC_SCOPE: openid profile email
-```
-
-#### 8.3 Update Grafana
-
-Edit `coreservices-homelab/docker-compose.yml`:
-
-```yaml
-grafana:
-  environment:
-    # Add these OAuth settings:
-    GF_AUTH_GENERIC_OAUTH_ENABLED: true
-    GF_AUTH_GENERIC_OAUTH_NAME: Keycloak
-    GF_AUTH_GENERIC_OAUTH_CLIENT_ID: grafana
-    GF_AUTH_GENERIC_OAUTH_CLIENT_SECRET: ${KEYCLOAK_GRAFANA_CLIENT_SECRET}
-    GF_AUTH_GENERIC_OAUTH_SCOPES: openid profile email
-    GF_AUTH_GENERIC_OAUTH_AUTH_URL: https://auth.local/realms/homelab/protocol/openid-connect/auth
-    GF_AUTH_GENERIC_OAUTH_TOKEN_URL: https://auth.local/realms/homelab/protocol/openid-connect/token
-    GF_AUTH_GENERIC_OAUTH_API_URL: https://auth.local/realms/homelab/protocol/openid-connect/userinfo
-    GF_AUTH_GENERIC_OAUTH_ALLOW_SIGN_UP: true
-    GF_AUTH_GENERIC_OAUTH_ROLE_ATTRIBUTE_PATH: contains(groups[*], 'homelab-admins') && 'Admin' || 'Viewer'
-```
-
-#### 8.4 Add ForwardAuth Middleware to Services
-
-For services without native OIDC support, add the ForwardAuth middleware:
-
-```yaml
-# Example for LiteLLM, SearXNG, Ollama, etc.
-service-name:
-  labels:
-    - "traefik.http.routers.service-name.middlewares=keycloak-auth@docker"
-```
-
-### Step 9: Restart Services
+### Step 8: Restart Services
 
 1. Restart coreservices:
 ```bash
@@ -279,37 +210,21 @@ cd /path/to/coreservices-homelab
 docker-compose restart grafana
 ```
 
-2. Restart AI stack services:
-```bash
-cd /path/to/ai-stack-homelab
-docker-compose restart open-webui n8n litellm
-```
-
-### Step 10: Test Authentication
+### Step 9: Test Authentication
 
 Test each service:
 
-1. **Open WebUI** (https://open-webui.local)
-   - Should redirect to Keycloak login
-   - Login with your credentials
-   - Should redirect back to Open WebUI
-
-2. **n8n** (https://n8n.local)
-   - Click "Sign in with SSO"
-   - Login via Keycloak
-   - Should access n8n dashboard
-
-3. **Grafana** (https://grafana.local)
+1. **Grafana** (https://grafana.local)
    - Click "Sign in with Keycloak"
    - Login via Keycloak
    - Should access Grafana with appropriate role
 
-4. **Vault** (https://vault.local)
+2. **Vault** (https://vault.local)
    - Select "OIDC" method
    - Login via Keycloak
    - Should access Vault UI
 
-5. **Protected Services** (LiteLLM, SearXNG, etc.)
+3. **Protected Services**
    - Access the service URL
    - Should redirect to Keycloak
    - After login, should access the service
@@ -432,7 +347,6 @@ docker-compose up -d keycloak
 - Set up social login providers (GitHub, Google, etc.)
 - Implement fine-grained authorization policies
 - Integrate with monitoring (Grafana dashboards for auth metrics)
-- Configure automated user provisioning via n8n workflows
 
 ## Support
 

@@ -39,8 +39,8 @@ services:
       - "8081:8080"  # Dashboard
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
-      - ../ai-stack-homelab/configs/traefik/traefik.yml:/etc/traefik/traefik.yml:ro
-      - ../ai-stack-homelab/configs/traefik/dynamic.yml:/etc/traefik/dynamic.yml:ro
+      - ./configs/traefik/traefik.yml:/etc/traefik/traefik.yml:ro
+      - ./configs/traefik/dynamic.yml:/etc/traefik/dynamic.yml:ro
       - traefik_certs:/certs
       - traefik_logs:/var/log/traefik
     networks:
@@ -192,10 +192,6 @@ services:
         condition: service_started
     environment:
       PORTAL_TITLE: ${PORTAL_TITLE:-Core Services Portal}
-      VAULT_UI_URL: ${VAULT_UI_URL:-https://vault.local}
-      TRAEFIK_UI_URL: ${TRAEFIK_UI_URL:-https://traefik.local}
-      GRAFANA_UI_URL: ${GRAFANA_UI_URL:-https://grafana.local}
-      ALLOY_UI_URL: ${ALLOY_UI_URL:-https://alloy.local}
       TRAEFIK_API_URL: http://traefik:8080/api
     networks:
       - core-network

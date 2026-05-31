@@ -41,13 +41,17 @@
       <p class="sub">Simple frontend for quick access to core services.</p>
 
       <section class="grid">
-        {% for link in links %}
-          <article class="card">
-            <div class="name">{{ link.name }}</div>
-            <div class="desc">{{ link.description }}</div>
-            <a class="btn" href="{{ link.url }}" target="_blank" rel="noopener noreferrer">Open {{ link.name }}</a>
-          </article>
-        {% endfor %}
+        {% if links %}
+          {% for link in links %}
+            <article class="card">
+              <div class="name">{{ link.name }}</div>
+              {% if link.rule %}<div class="rule">{{ link.rule }}</div>{% endif %}
+              <a class="btn" href="{{ link.url }}" target="_blank" rel="noopener noreferrer">Open {{ link.name }}</a>
+            </article>
+          {% endfor %}
+        {% else %}
+          <p style="color:#64748b">Discovering services&hellip;</p>
+        {% endif %}
       </section>
 
       <h2>Status</h2>

@@ -3,7 +3,7 @@
 ## Summary
 - **Total check functions found:** 3 primary check functions
 - **Categories:** Prerequisites, Dependencies, Validation
-- **Script Location:** `../ai-stack-homelab/scripts/setup.sh`
+- **Script Location:** `./scripts/setup.sh`
 - **Total Lines:** 547
 
 ## Check Functions
