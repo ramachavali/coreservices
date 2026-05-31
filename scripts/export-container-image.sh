@@ -130,78 +130,10 @@ export_volume_data() {
         continue
       }
 
-      cat > "${export_path}/volume_${volume_name}.json" << METADATA
-{
-  "container": "${container_name}",
-  "mount_point": "${dest}",
-  "source": "${source}",
-  "type": "${type}",
-  "timestamp": "$(date -u +"%Y-%m-%dT%H:%M:%SZ")",
-  "archive": "volume_${volume_name}.tar.gz"
-}
-METADATA
-
       log_info "✅ Backed up ${dest}"
     fi
   done
-
-  local restore_script="${PROJECT_ROOT}/scripts/restore-volume-data.sh"
-  if [ -f "$restore_script" ]; then
-    cp "$restore_script" "${export_path}/restore-volume-data.sh"
-    log_info "✅ Restore script copied to export directory"
-  else
-    log_warn "Restore script not found at ${restore_script}"
-  fi
-
-  cat > "${export_path}/README.md" << 'README'
-# Volume Data Export
-
-This directory contains exported volume data from a Docker container.
-
-## Contents
-
-- `volume_*.tar.gz` - Compressed volume data archives
-- `volume_*.json` - Metadata for each volume (mount points, timestamps, etc.)
-- `restore-volume-data.sh` - Script to restore volumes to a container
-
-## Restore Instructions
-
-1. **Start your target container:**
-   ```bash
-   docker run -d --name <container-name> <image-name>
-   ```
-
-2. **Run the restore script:**
-   ```bash
-   ./restore-volume-data.sh <container-name>
-   ```
-
-   Or from the scripts directory:
-   ```bash
-   ../../scripts/restore-volume-data.sh <container-name> .
-   ```
-
-3. **Verify the restoration:**
-   ```bash
-   docker exec <container-name> ls -la <mount-point>
-   ```
-
-## Options
-
-- Use `--force` to skip confirmation prompt
-- Specify export directory as second argument if not in current directory
-
-## Example
-
-```bash
-# Restore to container named 'vault'
-./restore-volume-data.sh vault
-
-# Restore with force flag
-./restore-volume-data.sh --force vault
-```
-README
-
+  
   log_info "✅ Volume data exported to: ${export_path}"
   log_info "To restore: cd ${export_path} && ./restore-volume-data.sh <container_name>"
 
