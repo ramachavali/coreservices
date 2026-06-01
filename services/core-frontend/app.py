@@ -35,8 +35,6 @@ def _poll():
             svc_backends = {}
             for svc in services_raw:
                 name = svc["name"]
-                if "@internal" in name:   # skip Traefik built-ins
-                    continue
                 servers = svc.get("loadBalancer", {}).get("servers", [])
                 if servers:
                     svc_backends[svc["name"]] = servers[0]["url"]
