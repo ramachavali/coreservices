@@ -35,7 +35,7 @@ def _poll():
             svc_backends = {}
             for svc in services_raw:
                 name = svc["name"]
-                if "@internal" in name or "traefik-coreservices-homelab" in name:   # skip Traefik built-ins
+                if "@internal" in name:   # skip Traefik built-ins
                     continue
                 servers = svc.get("loadBalancer", {}).get("servers", [])
                 if servers:
@@ -52,7 +52,7 @@ def _poll():
             results = []
             for svc in services_raw:
                 name = svc["name"]
-                if "@internal" in name or "traefik-coreservices-homelab" in name:   # skip Traefik built-ins
+                if "@internal" in name:   # skip Traefik built-ins
                     continue
                 display = name.replace("@docker", "").replace("@internal", "")
                 backend = svc_backends.get(name)
