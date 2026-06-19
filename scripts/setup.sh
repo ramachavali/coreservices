@@ -117,6 +117,9 @@ setup_tls_certificates() {
     "picoclaw.local"
     "auth.local"
     "keycloak.local"
+    "loki.local"
+    "redis.local"
+    "auth-postgres.local"
   )
 
   echo "Generating local shared TLS certificates for services..."
@@ -128,6 +131,7 @@ setup_tls_certificates() {
   for san in "${sans[@]}"; do
     pki_args+=(--san "$san")
   done
+  pki_args+=(--pg-hostname auth-postgres)
 
   "$pki_script" "${pki_args[@]}"
 
@@ -148,6 +152,24 @@ setup_tls_certificates() {
 
   echo "✅ Shared TLS certificate installed"
   echo "   CA bundle: ${pki_dir}/client/ca_bundle.crt"
+}
+
+check_native_services() {
+  if curl -sf http://localhost:11434/api/tags > /dev/null 2>&1; then
+    echo "✅ Native Ollama is running on port 11434"
+  else
+    echo "⚠️  Native Ollama is not running"
+    echo "   Install plist: cp scripts/com.ollama.ollama.plist ~/Library/LaunchAgents/"
+    echo "   Then load it:  launchctl load -w ~/Library/LaunchAgents/com.ollama.ollama.plist"
+  fi
+
+  if curl -sf http://localhost:8000/health > /dev/null 2>&1; then
+    echo "✅ Native OmniVoice is running on port 8000"
+  else
+    echo "⚠️  Native OmniVoice is not running"
+    echo "   Install: pip install omnivoice-server  or download the DMG from GitHub"
+    echo "   Docs: https://github.com/debpalash/OmniVoice-Studio/blob/main/docs/install/macos.md"
+  fi
 }
 
 require_docker
@@ -185,5 +207,6 @@ echo "Making management scripts executable"
 chmod +x scripts/*.sh || true
 
 setup_tls_certificates
+check_native_services
 
 echo "Setup complete. Review .env and then run: ./scripts/start.sh"

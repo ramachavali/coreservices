@@ -41,6 +41,7 @@ HOSTNAME=""
 DAYS_CA="3650"
 DAYS_LEAF="825"
 SANS=()
+PG_HOSTNAMES=()
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -50,6 +51,7 @@ while [[ $# -gt 0 ]]; do
     --san) SANS+=("$2"); shift 2 ;;
     --days-ca) DAYS_CA="$2"; shift 2 ;;
     --days-leaf) DAYS_LEAF="$2"; shift 2 ;;
+    --pg-hostname) PG_HOSTNAMES+=("$2"); shift 2 ;;
     -h|--help) usage; exit 0 ;;
     *) echo "Unknown arg: $1"; usage; exit 1 ;;
   esac
@@ -182,6 +184,68 @@ chmod 644 "$CERTS_DIR/cert.pem"
 # 6) Client CA bundle
 cp "$ROOT_CRT" "$CLIENT_BUNDLE"
 chmod 644 "$CLIENT_BUNDLE"
+
+# Optional: PostgreSQL server certificates
+# Each --pg-hostname generates a dedicated server cert signed by the same root CA.
+# Mount server.crt + server.key into the postgres container and set ssl=on.
+for pg_host in "${PG_HOSTNAMES[@]+"${PG_HOSTNAMES[@]}"}"; do
+  PG_DIR="$OUT_DIR/postgres/$pg_host"
+  mkdir -p "$PG_DIR"
+
+  PG_KEY="$PG_DIR/server.key"
+  PG_CSR="$OUT_DIR/tmp/${pg_host}-pg.csr"
+  PG_CRT="$PG_DIR/server.crt"
+  PG_CONF="$OUT_DIR/tmp/${pg_host}-pg.openssl.cnf"
+  PG_V3="$OUT_DIR/tmp/${pg_host}-pg.ext"
+
+  echo "[+] Generating PostgreSQL server cert for $pg_host"
+  openssl genrsa -out "$PG_KEY" 2048
+  chmod 600 "$PG_KEY"
+
+  cat > "$PG_CONF" <<EOF
+[ req ]
+default_bits       = 2048
+prompt             = no
+default_md         = sha256
+distinguished_name = dn
+req_extensions     = req_ext
+
+[ dn ]
+C  = US
+ST = MN
+L  = Home
+O  = FoolsNetwork
+OU = FoolsLab
+CN = $pg_host
+
+[ req_ext ]
+subjectAltName = DNS:${pg_host}
+EOF
+
+  openssl req -new -key "$PG_KEY" -out "$PG_CSR" -config "$PG_CONF"
+
+  cat > "$PG_V3" <<EOF
+basicConstraints = CA:FALSE
+keyUsage = digitalSignature, keyEncipherment
+extendedKeyUsage = serverAuth
+subjectKeyIdentifier = hash
+authorityKeyIdentifier = keyid,issuer
+subjectAltName = DNS:${pg_host}
+EOF
+
+  openssl x509 -req \
+    -in "$PG_CSR" \
+    -CA "$ROOT_CRT" \
+    -CAkey "$ROOT_KEY" \
+    -CAcreateserial \
+    -out "$PG_CRT" \
+    -days "$DAYS_LEAF" -sha256 \
+    -extfile "$PG_V3"
+
+  chmod 644 "$PG_CRT"
+  echo "  key:  $PG_KEY"
+  echo "  cert: $PG_CRT"
+done
 
 echo -e "\n✅ Done."
 echo "Root CA:"
