@@ -21,7 +21,7 @@
 //     → local.file_match + loki.source.file
 //     → loki.write "loki_endpoint"
 //
-//   Alloy self-metrics → prometheus.remote_write (placeholder)
+//   Alloy self-metrics → prometheus.exporter.self (UI only, no remote write)
 // ============================================================
 
 livedebugging {
@@ -264,40 +264,12 @@ loki.process "vault_audit_parse" {
 
 // ============================================================
 // SECTION 4: Alloy self-monitoring
-// Exposes Alloy's own health metrics.
-//
-// Source: self-monitoring/config.alloy
+// Exposes Alloy's own health metrics via its live-debug UI.
+// Prometheus scrape removed — no Prometheus container in this stack.
+// Add prometheus.scrape + prometheus.remote_write here if Prometheus is added.
 // ============================================================
 
 prometheus.exporter.self "integrations_alloy_health" {}
-
-discovery.relabel "integrations_alloy_health" {
-  targets = prometheus.exporter.self.integrations_alloy_health.targets
-
-  rule {
-    target_label = "instance"
-    replacement  = constants.hostname
-  }
-
-  rule {
-    target_label = "container"
-    replacement  = "alloy"
-  }
-}
-
-prometheus.scrape "integrations_alloy_health" {
-  targets    = discovery.relabel.integrations_alloy_health.output
-  forward_to = [prometheus.remote_write.placeholder.receiver]
-  job_name   = "integrations/alloy"
-}
-
-// Placeholder — replace url with your Prometheus/Mimir endpoint when added.
-// Remove this block entirely if you don't want the connection-refused noise.
-prometheus.remote_write "placeholder" {
-  endpoint {
-    url = "http://prometheus:9090/api/v1/write"
-  }
-}
 
 // ============================================================
 // SECTION 5: Single Loki write endpoint

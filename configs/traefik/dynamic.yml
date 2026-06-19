@@ -14,8 +14,34 @@ tls:
         certFile: /certs/cert.pem
         keyFile: /certs/key.pem
 
-# Middleware for security headers
+# Native host processes — file provider since these are not Docker services
 http:
+  routers:
+    ollama:
+      rule: "Host(`ollama.local`)"
+      entrypoints:
+        - websecure
+      tls: {}
+      service: ollama
+
+    omnivoice:
+      rule: "Host(`omnivoice.local`)"
+      entrypoints:
+        - websecure
+      tls: {}
+      service: omnivoice
+
+  services:
+    ollama:
+      loadBalancer:
+        servers:
+          - url: "http://host.docker.internal:11434"
+
+    omnivoice:
+      loadBalancer:
+        servers:
+          - url: "http://host.docker.internal:8000"
+
   middlewares:
     security-headers:
       headers:

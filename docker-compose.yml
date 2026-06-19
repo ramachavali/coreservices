@@ -1,4 +1,100 @@
 services:
+  auth-postgres:
+    image: pgvector/pgvector:pg17
+    container_name: auth-postgres
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    environment:
+      POSTGRES_DB: postgres
+      POSTGRES_USER: ${AUTH_POSTGRES_USER:-pgcore}
+      POSTGRES_PASSWORD: ${AUTH_POSTGRES_PASSWORD}
+      KEYCLOAK_DB_PASSWORD: ${KEYCLOAK_DB_PASSWORD}
+      AUTH_MONITOR_PASSWORD: ${AUTH_MONITOR_PASSWORD}
+    volumes:
+      - auth_postgres_data:/var/lib/postgresql/data
+      - ./configs/auth-postgres/init-db.sh:/docker-entrypoint-initdb.d/init-db.sh:ro
+      - ./configs/auth-postgres/postgresql.conf:/etc/postgresql/postgresql.conf:ro
+    command: postgres -c config_file=/etc/postgresql/postgresql.conf
+    networks:
+      - core-network
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=core-network"
+      - "traefik.tcp.routers.auth-postgres.rule=HostSNI(`auth-postgres.local`)"
+      - "traefik.tcp.routers.auth-postgres.entrypoints=websecure"
+      - "traefik.tcp.routers.auth-postgres.tls=true"
+      - "traefik.tcp.services.auth-postgres.loadbalancer.server.port=5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  keycloak:
+    build:
+      context: ./services/keycloak
+      dockerfile: Dockerfile
+    image: keycloak-optimized:26.2.5
+    container_name: keycloak
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    environment:
+      KC_DB_URL: jdbc:postgresql://auth-postgres:5432/keycloak
+      KC_DB_USERNAME: keycloak_user
+      KC_DB_PASSWORD: ${KEYCLOAK_DB_PASSWORD}
+      KC_HOSTNAME: auth.local
+      KC_BOOTSTRAP_ADMIN_USERNAME: ${KEYCLOAK_ADMIN_USER:-admin}
+      KC_BOOTSTRAP_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD}
+    command: start --optimized
+    volumes:
+      - keycloak_data:/opt/keycloak/data
+    networks:
+      - core-network
+    depends_on:
+      auth-postgres:
+        condition: service_healthy
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=core-network"
+      - "traefik.http.routers.keycloak.rule=Host(`auth.local`)"
+      - "traefik.http.routers.keycloak.entrypoints=websecure"
+      - "traefik.http.routers.keycloak.tls=true"
+      - "traefik.http.services.keycloak.loadbalancer.server.port=8080"
+    healthcheck:
+      test: ["CMD-SHELL", "exec 3<>/dev/tcp/localhost/9000 && printf 'GET /health/ready HTTP/1.0\\r\\nHost: localhost\\r\\n\\r\\n' >&3 && grep -q UP <&3"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 90s
+
+  redis:
+    image: redis:7-alpine
+    container_name: registry-redis
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    command: redis-server --save "" --appendonly no
+    volumes:
+      - redis_data:/data
+    networks:
+      - core-network
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=core-network"
+      - "traefik.tcp.routers.redis.rule=HostSNI(`redis.local`)"
+      - "traefik.tcp.routers.redis.entrypoints=websecure"
+      - "traefik.tcp.routers.redis.tls=true"
+      - "traefik.tcp.services.redis.loadbalancer.server.port=6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
   registry:
     image: registry:2
     container_name: registry
@@ -7,12 +103,14 @@ services:
       - no-new-privileges:true
     ports:
       - "5001:5001"
-    environment:
-      REGISTRY_STORAGE_FILESYSTEM_ROOTDIRECTORY: /var/lib/registry
     volumes:
+      - ./configs/registry/config.yml:/etc/docker/registry/config.yml:ro
       - ./configs/registry:/var/lib/registry
     networks:
       - core-network
+    depends_on:
+      redis:
+        condition: service_healthy
     labels:
       - "traefik.enable=true"
       - "traefik.docker.network=core-network"
@@ -142,6 +240,13 @@ services:
       - loki_data:/var/loki
     networks:
       - core-network
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=core-network"
+      - "traefik.http.routers.loki.rule=Host(`loki.local`)"
+      - "traefik.http.routers.loki.entrypoints=websecure"
+      - "traefik.http.routers.loki.tls=true"
+      - "traefik.http.services.loki.loadbalancer.server.port=3100"
     healthcheck:
       test: ["CMD", "loki", "-version"]
       interval: 30s
@@ -235,3 +340,5 @@ volumes:
     name: grafana_data
   loki_data:
     name: loki_data
+  redis_data:
+    name: redis_data

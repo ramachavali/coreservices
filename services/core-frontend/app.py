@@ -17,7 +17,7 @@ _lock = threading.Lock()
 
 def _probe(url):
     try:
-        r = requests.get(url, timeout=3, allow_redirects=True)
+        r = requests.get(url, timeout=3, allow_redirects=False)
         return "up", r.status_code
     except requests.ConnectionError:
         return "down", None
@@ -100,6 +100,11 @@ def home():
             "name": "Alloy",
             "url": os.getenv("ALLOY_UI_URL", "https://alloy.local"),
             "description": "Grafana Alloy telemetry pipeline and agent UI",
+        },
+        {
+            "name": "Keycloak",
+            "url": os.getenv("KEYCLOAK_UI_URL", "https://auth.local"),
+            "description": "Identity and access management",
         },
     ]
     return render_template(
