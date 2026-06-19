@@ -1,6 +1,6 @@
 # Core Services Architecture
 
-This document describes the core-services cluster (Traefik, Vault, Grafana) and how it operates standalone and integrates with application stacks (for example `ai-stack-homelab`).
+This document describes the core-services cluster (Traefik, Vault, Grafana) and how it operates standalone and integrates with application stacks.
 
 ## Overview
 
@@ -35,7 +35,7 @@ vault operator unseal $(awk '/^Unseal Key 1:/ {print $4}' vault-init.txt)
 
 ## Integration with Application Stacks
 
-- Application stacks (for example `ai-stack-homelab`) should declare the `core-network` as an external network in their `docker-compose.yml` and attach services that need routing or authentication to that network.
+- Application stacks should declare the `core-network` as an external network in their `docker-compose.yml` and attach services that need routing or authentication to that network.
 
 Example snippet in application compose:
 

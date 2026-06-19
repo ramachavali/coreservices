@@ -37,14 +37,11 @@ This document outlines the plan to implement Keycloak as the centralized authent
                             │ Protected Routes
                             ▼
 ┌─────────────────────────────────────────────────────────────┐
-│                      ai-stack-homelab                        │
+│                    Application Stacks (external)             │
 ├─────────────────────────────────────────────────────────────┤
 │                                                               │
-│  ┌────────────┐  ┌─────┐  ┌──────────┐  ┌────────────┐    │
-│  │ Open WebUI │  │ n8n │  │ LiteLLM  │  │  Grafana   │    │
-│  └────────────┘  └─────┘  └──────────┘  └────────────┘    │
-│                                                               │
-│  All services protected via Traefik ForwardAuth             │
+│  Services attach to core-network and are protected          │
+│  via Traefik ForwardAuth or native OIDC integration         │
 └─────────────────────────────────────────────────────────────┘
 ```
 
@@ -447,60 +444,7 @@ http:
 
 ### Phase 4: Service-Specific Integration
 
-#### 4.1 Open WebUI
-
-**Integration Method**: Native OIDC support
-
-**Configuration**:
-```yaml
-# docker-compose.yml (ai-stack-homelab)
-open-webui:
-  environment:
-    ENABLE_OAUTH_SIGNUP: true
-    OAUTH_PROVIDER: oidc
-    OAUTH_CLIENT_ID: openwebui
-    OAUTH_CLIENT_SECRET: ${KEYCLOAK_OPENWEBUI_CLIENT_SECRET}
-    OAUTH_ISSUER: https://auth.local/realms/homelab
-    OAUTH_AUTHORIZATION_URL: https://auth.local/realms/homelab/protocol/openid-connect/auth
-    OAUTH_TOKEN_URL: https://auth.local/realms/homelab/protocol/openid-connect/token
-    OAUTH_USERINFO_URL: https://auth.local/realms/homelab/protocol/openid-connect/userinfo
-    OAUTH_SCOPES: openid profile email
-  labels:
-    - "traefik.http.routers.open-webui.middlewares=keycloak-auth@docker"
-```
-
-#### 4.2 n8n
-
-**Integration Method**: Native OAuth2 support
-
-**Configuration**:
-```yaml
-# docker-compose.yml (ai-stack-homelab)
-n8n:
-  environment:
-    N8N_SSO_OIDC_ENABLED: true
-    N8N_SSO_OIDC_ISSUER: https://auth.local/realms/homelab
-    N8N_SSO_OIDC_CLIENT_ID: n8n
-    N8N_SSO_OIDC_CLIENT_SECRET: ${KEYCLOAK_N8N_CLIENT_SECRET}
-    N8N_SSO_OIDC_REDIRECT_URL: https://n8n.local/rest/oauth2-credential/callback
-    N8N_SSO_OIDC_SCOPE: openid profile email
-  labels:
-    - "traefik.http.routers.n8n.middlewares=keycloak-auth@docker"
-```
-
-#### 4.3 LiteLLM
-
-**Integration Method**: Traefik ForwardAuth (LiteLLM has limited native SSO)
-
-**Configuration**:
-```yaml
-# docker-compose.yml (ai-stack-homelab)
-litellm:
-  labels:
-    - "traefik.http.routers.litellm.middlewares=keycloak-auth@docker"
-```
-
-#### 4.4 Grafana
+#### 4.1 Grafana
 
 **Integration Method**: Native Generic OAuth support
 
@@ -521,7 +465,7 @@ grafana:
     GF_AUTH_GENERIC_OAUTH_ROLE_ATTRIBUTE_PATH: contains(groups[*], 'homelab-admins') && 'Admin' || 'Viewer'
 ```
 
-#### 4.5 Traefik Dashboard
+#### 4.2 Traefik Dashboard
 
 **Integration Method**: ForwardAuth middleware
 
@@ -533,7 +477,7 @@ traefik:
     - "traefik.http.routers.dashboard.middlewares=keycloak-auth@docker"
 ```
 
-#### 4.5 HashiCorp Vault OIDC Integration
+#### 4.3 HashiCorp Vault OIDC Integration
 
 **Integration Method**: Vault OIDC Auth Method + Keycloak as OIDC Provider
 
@@ -549,7 +493,7 @@ User → Vault UI → Keycloak (OIDC) → Vault (Token) → User Access
 - Audit trail through Keycloak
 - No separate Vault user database needed
 
-##### 4.5.1 Vault OIDC Auth Method Configuration
+#### 4.3.1 Vault OIDC Auth Method Configuration
 
 **Step 1: Enable OIDC Auth Method in Vault**
 
@@ -639,7 +583,7 @@ vault write identity/group-alias name="homelab-admins" \
     canonical_id="${ADMIN_GROUP_ID}"
 ```
 
-##### 4.5.2 Keycloak Client Configuration for Vault
+#### 4.3.2 Keycloak Client Configuration for Vault
 
 **In Keycloak Admin Console** (`https://auth.local`):
 
@@ -669,7 +613,7 @@ vault write identity/group-alias name="homelab-admins" \
    - Navigate to Credentials tab
    - Copy the secret to `KEYCLOAK_VAULT_CLIENT_SECRET` in `.env`
 
-##### 4.5.3 Vault Configuration Update
+#### 4.3.3 Vault Configuration Update
 
 Update Vault service in `coreservices-homelab/docker-compose.yml`:
 
@@ -718,7 +662,7 @@ vault:
     start_period: 10s
 ```
 
-##### 4.5.4 Vault OIDC Setup Script
+#### 4.3.4 Vault OIDC Setup Script
 
 Create `coreservices-homelab/configs/vault/oidc-setup.sh`:
 
@@ -804,7 +748,7 @@ vault write identity/group-alias name="homelab-admins" \
 echo "Vault OIDC configuration complete!"
 ```
 
-##### 4.5.5 User Login Flow
+#### 4.3.5 User Login Flow
 
 **Web UI Login**:
 1. Navigate to `https://vault.local`
@@ -820,7 +764,7 @@ vault login -method=oidc role=homelab-admin
 # Opens browser for Keycloak authentication
 ```
 
-##### 4.5.6 Vault as OIDC Identity Provider (Optional)
+#### 4.3.6 Vault as OIDC Identity Provider (Optional)
 
 **Future Enhancement**: Configure Vault to act as an OIDC provider for other services
 
@@ -852,7 +796,7 @@ vault write identity/oidc/client/my-service \
     access_token_ttl=1h
 ```
 
-##### 4.5.7 Testing Vault OIDC Integration
+#### 4.3.7 Testing Vault OIDC Integration
 
 **Test Checklist**:
 - [ ] Vault OIDC auth method enabled
@@ -883,17 +827,10 @@ docker exec vault cat /vault/logs/audit.log
 ```
 
 
-#### 4.6 Additional Services
+#### 4.4 Additional Services
 
-**Services requiring ForwardAuth only**:
-- SearXNG
-- Ollama API
-- MCPO
-- PicoClaw
-- AI Portal
-- Core Portal
+**Services requiring ForwardAuth only** (attach to core-network with appropriate label):
 
-All receive middleware label:
 ```yaml
 labels:
   - "traefik.http.routers.SERVICE.middlewares=keycloak-auth@docker"
@@ -1119,7 +1056,7 @@ Update `ARCHITECTURE.md`:
 - [ ] Integrate with Vault for secret management
 - [ ] Implement fine-grained authorization policies
 - [ ] Add audit logging to Loki/Grafana
-- [ ] Create automated user provisioning workflows (n8n)
+- [ ] Create automated user provisioning workflows
 
 ### Long Term (6+ months)
 

@@ -35,8 +35,6 @@ def _poll():
             svc_backends = {}
             for svc in services_raw:
                 name = svc["name"]
-                if "@internal" in name:   # skip Traefik built-ins
-                    continue
                 servers = svc.get("loadBalancer", {}).get("servers", [])
                 if servers:
                     svc_backends[svc["name"]] = servers[0]["url"]
@@ -57,11 +55,17 @@ def _poll():
                 display = name.replace("@docker", "").replace("@internal", "")
                 backend = svc_backends.get(name)
                 health, code = _probe(backend) if backend else ("internal", None)
+                rule = svc_rule.get(name, "")
+                url = None
+                m = re.search(r"Host\(`([^`]+)`\)", rule)
+                if m:
+                    url = f"https://{m.group(1)}"
                 results.append({
                     "name": display,
-                    "rule": svc_rule.get(name, ""),
+                    "rule": rule,
                     "health": health,
                     "http_status": code,
+                    "url": url,
                 })
 
             results.sort(key=lambda x: x["name"])
@@ -80,6 +84,7 @@ threading.Thread(target=_poll, daemon=True).start()
 
 @app.get("/")
 def home():
+<<<<<<< HEAD
     links = [
         {
             "name": "Vault UI",
@@ -107,6 +112,10 @@ def home():
             "description": "Identity and access management",
         },
     ]
+=======
+    with _lock:
+        links = [s for s in _cache["services"] if s.get("url")]
+>>>>>>> 07666b169c24d94b730de1169bea081947940708
     return render_template(
         "index.html",
         title=os.getenv("PORTAL_TITLE", "Core Services Portal"),

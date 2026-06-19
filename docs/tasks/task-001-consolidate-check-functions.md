@@ -185,7 +185,7 @@ check_coreservices_available() {
     
     # Check directory exists
     if ! check_directory_exists "$core_root"; then
-        print_error "Core services folder not found: $core_root\nClone/place coreservices-homelab next to ai-stack-homelab and retry" $EXIT_DEPENDENCY_MISSING
+        print_error "Core services folder not found: $core_root\nClone/place coreservices-homelab and retry" $EXIT_DEPENDENCY_MISSING
     fi
     
     # Check containers running

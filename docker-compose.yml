@@ -102,7 +102,14 @@ services:
     security_opt:
       - no-new-privileges:true
     ports:
+<<<<<<< HEAD
       - "5001:5001"
+=======
+      - "5001:5000"
+    environment:
+      REGISTRY_STORAGE_FILESYSTEM_ROOTDIRECTORY: /var/lib/registry
+      REGISTRY_HTTP_SECRET: ${REGISTRY_HTTP_SECRET:-myregistrysecret}
+>>>>>>> 07666b169c24d94b730de1169bea081947940708
     volumes:
       - ./configs/registry/config.yml:/etc/docker/registry/config.yml:ro
       - ./configs/registry:/var/lib/registry
@@ -116,10 +123,10 @@ services:
       - "traefik.docker.network=core-network"
       - "traefik.http.routers.registry.rule=Host(`registry.local`)"
       - "traefik.http.routers.registry.entrypoints=websecure"
-      - "traefik.http.routers.registry.tls=true"
+      - "traefik.http.routers.registry.tls=false"
       - "traefik.http.services.registry.loadbalancer.server.port=5001"
     healthcheck:
-      test: ["CMD", "wget", "-q", "--spider", "http://0.0.0.0:5001/v2/"]
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:5001/v2/"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -137,8 +144,8 @@ services:
       - "8081:8080"  # Dashboard
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
-      - ../ai-stack-homelab/configs/traefik/traefik.yml:/etc/traefik/traefik.yml:ro
-      - ../ai-stack-homelab/configs/traefik/dynamic.yml:/etc/traefik/dynamic.yml:ro
+      - ./configs/traefik/traefik.yml:/etc/traefik/traefik.yml:ro
+      - ./configs/traefik/dynamic.yml:/etc/traefik/dynamic.yml:ro
       - traefik_certs:/certs
       - traefik_logs:/var/log/traefik
     networks:
@@ -297,10 +304,6 @@ services:
         condition: service_started
     environment:
       PORTAL_TITLE: ${PORTAL_TITLE:-Core Services Portal}
-      VAULT_UI_URL: ${VAULT_UI_URL:-https://vault.local}
-      TRAEFIK_UI_URL: ${TRAEFIK_UI_URL:-https://traefik.local}
-      GRAFANA_UI_URL: ${GRAFANA_UI_URL:-https://grafana.local}
-      ALLOY_UI_URL: ${ALLOY_UI_URL:-https://alloy.local}
       TRAEFIK_API_URL: http://traefik:8080/api
     networks:
       - core-network

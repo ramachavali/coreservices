@@ -39,17 +39,6 @@ vault operator init -key-shares=1 -key-threshold=1 > vault-init.txt
 vault operator unseal $(awk '/^Unseal Key 1:/ {print $4}' vault-init.txt)
 ```
 
-## AI Stack Integration
-
-1. Keep core services running.
-2. In `ai-stack-homelab`, ensure routed services attach to external `core-network`.
-3. Start AI stack:
-
-```bash
-cd /Users/rama/work/ai-stack-homelab
-./scripts/start.sh
-```
-
 ## Operations
 
 ```bash
