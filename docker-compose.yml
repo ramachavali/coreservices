@@ -102,14 +102,10 @@ services:
     security_opt:
       - no-new-privileges:true
     ports:
-<<<<<<< HEAD
-      - "5001:5001"
-=======
       - "5001:5000"
     environment:
       REGISTRY_STORAGE_FILESYSTEM_ROOTDIRECTORY: /var/lib/registry
       REGISTRY_HTTP_SECRET: ${REGISTRY_HTTP_SECRET:-myregistrysecret}
->>>>>>> 07666b169c24d94b730de1169bea081947940708
     volumes:
       - ./configs/registry/config.yml:/etc/docker/registry/config.yml:ro
       - ./configs/registry:/var/lib/registry

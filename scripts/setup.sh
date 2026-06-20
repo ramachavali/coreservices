@@ -154,6 +154,28 @@ setup_tls_certificates() {
   echo "   CA bundle: ${pki_dir}/client/ca_bundle.crt"
 }
 
+configure_ollama_plist() {
+  local plist_dst="${HOME}/Library/LaunchAgents/com.ollama.ollama.plist"
+  local ollama_key="${OLLAMA_API_KEY:-}"
+
+  if [ -z "$ollama_key" ]; then
+    echo "⚠️  OLLAMA_API_KEY not set; skipping plist update"
+    return
+  fi
+
+  if [ ! -f "$plist_dst" ]; then
+    echo "⚠️  Ollama plist not found at $plist_dst; skipping reload"
+    echo "   Install it first: cp scripts/com.ollama.ollama.plist ~/Library/LaunchAgents/"
+    return
+  fi
+
+  /usr/libexec/PlistBuddy -c "Set :EnvironmentVariables:OLLAMA_API_KEY $ollama_key" "$plist_dst"
+
+  launchctl unload "$plist_dst" 2>/dev/null || true
+  launchctl load -w "$plist_dst"
+  echo "✅ Ollama LaunchAgent reloaded with updated API key"
+}
+
 check_native_services() {
   if curl -sf http://localhost:11434/api/tags > /dev/null 2>&1; then
     echo "✅ Native Ollama is running on port 11434"
@@ -207,6 +229,7 @@ echo "Making management scripts executable"
 chmod +x scripts/*.sh || true
 
 setup_tls_certificates
+configure_ollama_plist
 check_native_services
 
 echo "Setup complete. Review .env and then run: ./scripts/start.sh"
